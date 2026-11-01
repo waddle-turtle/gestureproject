@@ -1,0 +1,9 @@
+mj_env/
+__pycache__/
+*.pyc
+certs/
+.env
+.env.*
+*.pem
+*.key
+*.log

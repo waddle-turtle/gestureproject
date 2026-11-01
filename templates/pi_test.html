@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>掌中智戲 - Raspberry Pi 測試</title>
+
+    <style>
+
+        body {
+            margin: 0;
+            background: #111;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 1200px;
+            margin: 30px auto;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        .video-box {
+            display: flex;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        .video-box img {
+            width: 100%;
+            max-width: 1000px;
+            border: 2px solid #555;
+            border-radius: 12px;
+        }
+
+        .status {
+            margin-top: 20px;
+            text-align: center;
+            color: #aaa;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1>
+            掌中智戲
+        </h1>
+
+        <div class="video-box">
+
+            <img
+                src="{{ url_for('video_feed') }}"
+                alt="Raspberry Pi 手部辨識"
+            >
+
+        </div>
+
+        <div class="status">
+            Raspberry Pi 手部辨識畫面
+        </div>
+
+    </div>
+
+</body>
+
+</html>

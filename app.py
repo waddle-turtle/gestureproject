@@ -1,0 +1,1197 @@
+import cv2
+
+import mediapipe as mp
+
+import subprocess
+
+import atexit
+
+import signal
+
+import numpy as np
+
+import threading
+
+import time
+
+import serial
+
+from flask import Flask, Response, jsonify, render_template, request
+
+
+
+app = Flask(__name__)
+
+
+
+# Arduino serial settings*
+
+ARDUINO_PORT = '/dev/ttyUSB0'
+
+ARDUINO_BAUD_RATE = 9600
+
+# 測試模式：未接 Arduino 也能推進劇本；正式演出改 False
+SIMULATION_MODE = True
+# 影像鏡像：若辨識左右手相反，切換 True/False 再測試
+VIDEO_MIRROR = False
+
+arduino = None
+
+serial_lock = threading.Lock()
+
+
+
+def connect_arduino():
+
+    global arduino
+
+    try:
+
+        arduino = serial.Serial(port=ARDUINO_PORT, baudrate=ARDUINO_BAUD_RATE,
+
+                                timeout=1, write_timeout=1)
+
+        time.sleep(2)  # Arduino reset after serial port is opened*
+
+        arduino.reset_input_buffer()
+
+        arduino.reset_output_buffer()
+
+        print(f'成功連線至 Arduino：{ARDUINO_PORT}')
+
+    except (serial.SerialException, OSError) as error:
+
+        arduino = None
+
+        print(f'警告：Arduino 連線失敗：{error}')
+
+
+
+if not SIMULATION_MODE:
+    connect_arduino()
+else:
+    print('SIMULATION_MODE=True：不連線 Arduino，僅模擬動作指令')
+
+
+
+mp_hands = mp.solutions.hands
+
+mp_draw = mp.solutions.drawing_utils
+
+hands = mp_hands.Hands(static_image_mode=False, max_num_hands=2,
+
+                       model_complexity=0, min_detection_confidence=0.7,
+
+                       min_tracking_confidence=0.7)
+
+
+
+latest_camera_frame = None
+
+camera_frame_id = 0
+
+latest_output_frame = None
+
+camera_frame_lock = threading.Lock()
+
+output_frame_lock = threading.Lock()
+
+puppet_frame = None
+
+puppet_frame_time = None
+
+puppet_frame_lock = threading.Lock()
+
+state_lock = threading.Lock()
+
+
+
+right_hand_finger_count = None
+
+left_hand_finger_count = None
+
+right_hand_action = 'NOT_DETECTED'
+
+left_hand_action = 'NOT_DETECTED'
+
+right_character_command = 'IDLE'
+
+left_character_command = 'IDLE'
+
+
+
+STABLE_FRAMES_REQUIRED = 5
+
+COMMAND_COOLDOWN_SECONDS = 1.0
+
+hand_states = {
+
+    'Right': {'candidate': -1, 'frames': 0, 'last_sent': -1, 'last_command_time': 0.0},
+
+    'Left': {'candidate': -1, 'frames': 0, 'last_sent': -1, 'last_command_time': 0.0},
+
+}
+
+ACTION_NAMES = {0: 'READY', 1: 'WAVE', 2: 'SALUTE',
+
+                3: 'DOUBLE_STRIKE', 4: 'SWORD_SWING', 5: 'GUARD'}
+
+UI_ACTION_NAMES = {0: '準備姿勢', 1: '揮手', 2: '敬禮',
+
+                   3: '雙手下劈', 4: '揮劍', 5: '舉劍格擋'}
+
+FREE_MODE_ACTION_LIST = [
+
+    {'gesture_icon': '✊', 'gesture_name': '握拳', 'action_name': '準備姿勢', 'action_code': 'READY'},
+
+    {'gesture_icon': '☝️', 'gesture_name': '伸出 1 根手指', 'action_name': '揮手', 'action_code': 'WAVE'},
+
+    {'gesture_icon': '✌️', 'gesture_name': '伸出 2 根手指', 'action_name': '敬禮', 'action_code': 'SALUTE'},
+
+    {'gesture_icon': '🤟', 'gesture_name': '伸出 3 根手指', 'action_name': '雙手下劈', 'action_code': 'DOUBLE_STRIKE'},
+
+    {'gesture_icon': '🖐️', 'gesture_name': '伸出 4 根手指', 'action_name': '揮劍', 'action_code': 'SWORD_SWING'},
+    {'gesture_icon': '🖐️', 'gesture_name': '伸出 5 根手指', 'action_name': '舉劍格擋', 'action_code': 'GUARD'},
+
+]
+
+
+
+system_mode = 'script'
+
+script_generated = False
+
+script_started = False
+
+script_finished = False
+
+script_current_scene = 0
+
+script_last_action = 'NONE'
+
+script_last_action_name = '尚未執行'
+
+SCRIPT_NAME = '《雙俠論劍》'
+SCRIPT_DESCRIPTION = '青雲與赤風以劍會友，六幕、十五組雙角色手勢操作。'
+SCRIPT_SCENES = [
+    {'scene_title': '江湖相遇', 'story_text': '赤風打招呼', 'gesture_count': 1, 'gesture_name': '右手 1 根', 'gesture_icon': '☝️', 'operator_text': '請比出 右手 1 根，保持穩定。', 'action_name': '赤風打招呼', 'action_code': 'R1', 'left_count': None, 'right_count': 1, 'step_number': 1},
+    {'scene_title': '江湖相遇', 'story_text': '青雲行禮', 'gesture_count': 2, 'gesture_name': '左手 2 根', 'gesture_icon': '✌️', 'operator_text': '請比出 左手 2 根，保持穩定。', 'action_name': '青雲行禮', 'action_code': 'L2', 'left_count': 2, 'right_count': None, 'step_number': 2},
+    {'scene_title': '江湖相遇', 'story_text': '赤風回禮', 'gesture_count': 2, 'gesture_name': '右手 2 根', 'gesture_icon': '✌️', 'operator_text': '請比出 右手 2 根，保持穩定。', 'action_name': '赤風回禮', 'action_code': 'R2', 'left_count': None, 'right_count': 2, 'step_number': 3},
+    {'scene_title': '以劍會友', 'story_text': '青雲展示劍法', 'gesture_count': 4, 'gesture_name': '左手 4 根', 'gesture_icon': '🖐️', 'operator_text': '請比出 左手 4 根，保持穩定。', 'action_name': '青雲展示劍法', 'action_code': 'L4', 'left_count': 4, 'right_count': None, 'step_number': 4},
+    {'scene_title': '以劍會友', 'story_text': '赤風展示劍法', 'gesture_count': 4, 'gesture_name': '右手 4 根', 'gesture_icon': '🖐️', 'operator_text': '請比出 右手 4 根，保持穩定。', 'action_name': '赤風展示劍法', 'action_code': 'R4', 'left_count': None, 'right_count': 4, 'step_number': 5},
+    {'scene_title': '以劍會友', 'story_text': '雙方正式行禮', 'gesture_count': 2, 'gesture_name': '左手 2 根＋右手 2 根', 'gesture_icon': '✌️', 'operator_text': '請比出 左手 2 根＋右手 2 根，保持穩定。', 'action_name': '雙方正式行禮', 'action_code': 'DUAL', 'left_count': 2, 'right_count': 2, 'step_number': 6},
+    {'scene_title': '赤風先攻', 'story_text': '赤風攻擊、青雲格擋', 'gesture_count': 3, 'gesture_name': '左手 5 根＋右手 3 根', 'gesture_icon': '🤟', 'operator_text': '請比出 左手 5 根＋右手 3 根，保持穩定。', 'action_name': '赤風攻擊、青雲格擋', 'action_code': 'DUAL', 'left_count': 5, 'right_count': 3, 'step_number': 7},
+    {'scene_title': '青雲反擊', 'story_text': '青雲揮劍', 'gesture_count': 4, 'gesture_name': '左手 4 根', 'gesture_icon': '🖐️', 'operator_text': '請比出 左手 4 根，保持穩定。', 'action_name': '青雲揮劍', 'action_code': 'L4', 'left_count': 4, 'right_count': None, 'step_number': 8},
+    {'scene_title': '青雲反擊', 'story_text': '青雲攻擊、赤風格擋', 'gesture_count': 5, 'gesture_name': '左手 3 根＋右手 5 根', 'gesture_icon': '🖐️', 'operator_text': '請比出 左手 3 根＋右手 5 根，保持穩定。', 'action_name': '青雲攻擊、赤風格擋', 'action_code': 'DUAL', 'left_count': 3, 'right_count': 5, 'step_number': 9},
+    {'scene_title': '最終交鋒', 'story_text': '雙方同時揮劍', 'gesture_count': 4, 'gesture_name': '左手 4 根＋右手 4 根', 'gesture_icon': '🖐️', 'operator_text': '請比出 左手 4 根＋右手 4 根，保持穩定。', 'action_name': '雙方同時揮劍', 'action_code': 'DUAL', 'left_count': 4, 'right_count': 4, 'step_number': 10},
+    {'scene_title': '最終交鋒', 'story_text': '赤風再次進攻、青雲格擋', 'gesture_count': 3, 'gesture_name': '左手 5 根＋右手 3 根', 'gesture_icon': '🤟', 'operator_text': '請比出 左手 5 根＋右手 3 根，保持穩定。', 'action_name': '赤風再次進攻、青雲格擋', 'action_code': 'DUAL', 'left_count': 5, 'right_count': 3, 'step_number': 11},
+    {'scene_title': '最終交鋒', 'story_text': '青雲最後反擊、赤風格擋', 'gesture_count': 5, 'gesture_name': '左手 3 根＋右手 5 根', 'gesture_icon': '🖐️', 'operator_text': '請比出 左手 3 根＋右手 5 根，保持穩定。', 'action_name': '青雲最後反擊、赤風格擋', 'action_code': 'DUAL', 'left_count': 3, 'right_count': 5, 'step_number': 12},
+    {'scene_title': '以武會友', 'story_text': '赤風認可對手', 'gesture_count': 2, 'gesture_name': '右手 2 根', 'gesture_icon': '✌️', 'operator_text': '請比出 右手 2 根，保持穩定。', 'action_name': '赤風認可對手', 'action_code': 'R2', 'left_count': None, 'right_count': 2, 'step_number': 13},
+    {'scene_title': '以武會友', 'story_text': '青雲回禮', 'gesture_count': 2, 'gesture_name': '左手 2 根', 'gesture_icon': '✌️', 'operator_text': '請比出 左手 2 根，保持穩定。', 'action_name': '青雲回禮', 'action_code': 'L2', 'left_count': 2, 'right_count': None, 'step_number': 14},
+    {'scene_title': '以武會友', 'story_text': '雙方揮手謝幕', 'gesture_count': 1, 'gesture_name': '左手 1 根＋右手 1 根', 'gesture_icon': '☝️', 'operator_text': '請比出 左手 1 根＋右手 1 根，保持穩定。', 'action_name': '雙方揮手謝幕', 'action_code': 'DUAL', 'left_count': 1, 'right_count': 1, 'step_number': 15},
+]
+
+def send_arduino_command(command):
+
+    global arduino
+
+    print(f'準備傳送 Arduino：{command}')
+
+    if SIMULATION_MODE:
+        print(f'[模擬指令] {command}（未發送至馬達）', flush=True)
+        return True
+
+    if arduino is None or not arduino.is_open:
+
+        print(f'Arduino 未連線，測試命令：{command}')
+
+        return False
+
+    try:
+
+        with serial_lock:
+
+            arduino.write(f'{command}\n'.encode('utf-8'))
+
+            arduino.flush()
+
+        print(f'Arduino 序列埠寫入成功：{command}')
+
+        return True
+
+    except (serial.SerialException, serial.SerialTimeoutException, OSError) as error:
+
+        print(f'Arduino 指令傳送失敗：{error}')
+
+        return False
+
+
+
+
+
+# Arduino 回覆監控：只讀取 Arduino 回傳，不改變手勢或動作排程。*
+
+def arduino_feedback_thread():
+
+    line_buffer = bytearray()
+
+    while True:
+
+        if arduino is None or not arduino.is_open:
+
+            time.sleep(0.2)
+
+            continue
+
+        try:
+
+            # 共用鎖避免讀取與寫入同時操作同一序列物件；*
+
+            # in_waiting/read(size) 不等待換行，避免阻塞送指令。*
+
+            with serial_lock:
+
+                available = arduino.in_waiting
+
+                chunk = arduino.read(min(available, 256)) if available else b''
+
+            if not chunk:
+
+                time.sleep(0.01)
+
+                continue
+
+            for b in chunk:
+
+                if b == 10:  # newline*
+
+                    message = line_buffer.decode('utf-8', errors='replace').strip()
+
+                    line_buffer.clear()
+
+                    if message:
+
+                        print(f'[Arduino 回覆] {message}', flush=True)
+
+                elif b != 13:  # ignore CR*
+
+                    if len(line_buffer) < 256:
+
+                        line_buffer.append(b)
+
+                    else:
+
+                        line_buffer.clear()
+
+                        print('[Arduino 回覆] 警告：回覆過長，已捨棄', flush=True)
+
+        except (serial.SerialException, OSError) as error:
+
+            print(f'[Arduino 回覆] 讀取失敗：{error}', flush=True)
+
+            time.sleep(0.5)
+
+
+
+# 管理相機子程序，避免 Ctrl+C 後殘留並占用 CSI 相機。*
+
+camera_stop_event = threading.Event()
+
+camera_process = None
+
+camera_process_lock = threading.Lock()
+
+
+
+
+
+def stop_camera_process():
+
+    global camera_process
+
+    camera_stop_event.set()
+
+    with camera_process_lock:
+
+        process = camera_process
+
+        camera_process = None
+
+    if process is None:
+
+        return
+
+    if process.poll() is None:
+
+        process.terminate()
+
+        try:
+
+            process.wait(timeout=3)
+
+        except subprocess.TimeoutExpired:
+
+            process.kill()
+
+            process.wait(timeout=2)
+
+    for pipe in (process.stdout, process.stderr):
+
+        if pipe is not None:
+
+            pipe.close()
+
+    print('相機子程序已釋放', flush=True)
+
+
+
+
+
+atexit.register(stop_camera_process)
+
+
+
+
+
+def handle_shutdown_signal(signum, frame):
+
+    # SIGTERM 也須清理；Ctrl+C 由主程式的 finally 處理。*
+
+    raise SystemExit(128 + signum)
+
+
+
+
+
+signal.signal(signal.SIGTERM, handle_shutdown_signal)
+
+
+
+
+
+# 影片位置：將已錄好的雙手手勢影片放在這裡。
+VIDEO_PATH = 'static/videos/gesture_performance.mp4'
+video_play_event = threading.Event()      # 預設暫停，不會偷偷發送馬達指令
+video_restart_event = threading.Event()
+video_status_lock = threading.Lock()
+video_status = {'status': 'loading', 'position': 0.0, 'duration': 0.0,
+                'fps': 0.0, 'message': ''}
+
+
+def update_video_status(**fields):
+    with video_status_lock:
+        video_status.update(fields)
+
+
+def clear_video_hand_state():
+    """停止/重播時清除舊手勢，避免跨影片殘留而誤觸發。"""
+    global right_hand_finger_count, left_hand_finger_count
+    global right_hand_action, left_hand_action
+    global right_character_command, left_character_command
+    with state_lock:
+        right_hand_finger_count = None
+        left_hand_finger_count = None
+        right_hand_action = 'NOT_DETECTED'
+        left_hand_action = 'NOT_DETECTED'
+        right_character_command = 'IDLE'
+        left_character_command = 'IDLE'
+    for hand in ('Right', 'Left'):
+        reset_hand_state(hand, clear_cooldown=True)
+
+
+def camera_thread():
+    """沿用舊執行緒名稱，實際來源改成影片，不啟動 rpicam-vid。"""
+    global latest_camera_frame, camera_frame_id
+    from pathlib import Path
+    movie = Path(__file__).resolve().parent / VIDEO_PATH
+    if not movie.is_file():
+        msg = f'找不到手勢影片：{movie}'
+        update_video_status(status='error', message=msg)
+        print(msg, flush=True)
+        return
+
+    capture = cv2.VideoCapture(str(movie))
+    if not capture.isOpened():
+        msg = f'OpenCV 無法讀取影片：{movie}（請檢查編碼）'
+        update_video_status(status='error', message=msg)
+        print(msg, flush=True)
+        return
+
+    fps = capture.get(cv2.CAP_PROP_FPS)
+    fps = fps if 1 <= fps <= 120 else 30.0
+    total_frames = capture.get(cv2.CAP_PROP_FRAME_COUNT)
+    update_video_status(status='paused', fps=round(fps, 2),
+                        duration=round(total_frames / fps, 2),
+                        message='影片已就緒，請按播放')
+    next_frame_time = time.monotonic()
+    frame_number = 0
+    try:
+        while not camera_stop_event.is_set():
+            if video_restart_event.is_set():
+                video_restart_event.clear()
+                video_play_event.clear()
+                capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                frame_number = 0
+                clear_video_hand_state()
+                next_frame_time = time.monotonic()
+                update_video_status(status='paused', position=0.0, message='已回到影片開頭')
+
+            if not video_play_event.is_set():
+                time.sleep(0.03)
+                next_frame_time = time.monotonic()
+                continue
+
+            # 按影片 FPS 逐格提供給 MediaPipe；辨識負荷過高則會落後，
+            # 但不會將整段影片瞬間讀完，也不會快速連續下馬達指令。
+            delay = next_frame_time - time.monotonic()
+            if delay > 0:
+                time.sleep(min(delay, 0.03))
+                continue
+            ok, frame = capture.read()
+            if not ok:
+                video_play_event.clear()
+                clear_video_hand_state()
+                update_video_status(status='ended', message='影片播放完畢；可按重新播放')
+                print('手勢影片播放完畢', flush=True)
+                continue
+
+            frame_number += 1
+            with camera_frame_lock:
+                latest_camera_frame = frame
+                camera_frame_id += 1
+            update_video_status(status='playing', position=round(frame_number / fps, 2), message='')
+            next_frame_time += 1.0 / fps
+            # 若解碼過慢，不連續爆衝補幀；以當下為基準繼續播放。
+            if next_frame_time < time.monotonic() - 0.15:
+                next_frame_time = time.monotonic()
+    finally:
+        capture.release()
+        print('影片來源已釋放', flush=True)
+
+
+@app.route('/video_control', methods=['POST'])
+def video_control():
+    data = request.get_json(silent=True) or {}
+    action = data.get('action')
+    with video_status_lock:
+        current = video_status['status']
+    if action == 'play':
+        if current in ('error', 'loading'):
+            return jsonify({'success': False, 'message': '影片尚未準備好'}), 400
+        if current == 'ended':
+            return jsonify({'success': False, 'message': '影片已結束，請先重新播放'}), 400
+        video_play_event.set()
+        update_video_status(status='playing', message='')
+    elif action == 'pause':
+        video_play_event.clear()
+        update_video_status(status='paused', message='已暫停')
+    elif action == 'restart':
+        video_restart_event.set()
+    else:
+        return jsonify({'success': False, 'message': 'action 必須是 play / pause / restart'}), 400
+    return jsonify({'success': True})
+
+
+def count_fingers(hand_landmarks):
+
+    landmarks = hand_landmarks.landmark
+
+    count = 0
+
+    for tip, pip in ((8, 6), (12, 10), (16, 14), (20, 18)):
+
+        if landmarks[tip].y < landmarks[pip].y:
+
+            count += 1
+
+    thumb_tip_distance = np.hypot(landmarks[4].x - landmarks[17].x,
+
+                                   landmarks[4].y - landmarks[17].y)
+
+    thumb_joint_distance = np.hypot(landmarks[3].x - landmarks[17].x,
+
+                                     landmarks[3].y - landmarks[17].y)
+
+    if thumb_tip_distance > thumb_joint_distance:
+
+        count += 1
+
+    return count
+
+
+
+def get_hand_action_name(finger_count):
+
+    return ACTION_NAMES.get(finger_count, 'UNKNOWN')
+
+
+
+def reset_hand_state(hand_label, *, clear_cooldown=False):
+
+    state = hand_states[hand_label]
+
+    state['candidate'] = -1
+
+    state['frames'] = 0
+
+    state['last_sent'] = -1
+
+    # Tracking interruption must NOT bypass the 1-second cooldown.*
+
+    # This flag is only for an explicit new session if ever needed.*
+
+    if clear_cooldown:
+
+        state['last_command_time'] = 0.0
+
+
+
+def analyze_hand_gesture(hand_label, finger_count):
+    """單手穩定偵測；自由模式直接派送，劇本模式交由整步判斷。"""
+    global right_character_command, left_character_command
+    state = hand_states[hand_label]
+    now = time.monotonic()
+    if finger_count not in (1, 2, 3, 4, 5):
+        state['candidate'] = -1
+        state['frames'] = 0
+        state['last_sent'] = -1
+        return
+    if finger_count != state['candidate']:
+        state['candidate'] = finger_count
+        state['frames'] = 1
+    else:
+        state['frames'] += 1
+    with state_lock:
+        mode = system_mode
+    if mode != 'free' or state['frames'] < STABLE_FRAMES_REQUIRED:
+        return
+    if finger_count == state['last_sent']:
+        return
+    if now - state['last_command_time'] < COMMAND_COOLDOWN_SECONDS:
+        return
+    command = ('R' if hand_label == 'Right' else 'L') + str(finger_count)
+    if not send_arduino_command(command):
+        return
+    state['last_sent'] = finger_count
+    state['last_command_time'] = time.monotonic()
+    with state_lock:
+        if hand_label == 'Right':
+            right_character_command = command
+        else:
+            left_character_command = command
+
+
+def process_script_step():
+    """以完整左右手組合確認每一組動作，避免雙手動作只送出一半。"""
+    global script_started, script_finished, script_current_scene
+    global script_last_action, script_last_action_name
+    global right_character_command, left_character_command
+    with state_lock:
+        if (system_mode != 'script' or not script_started or script_finished
+                or script_current_scene >= len(SCRIPT_SCENES)):
+            return
+        step_index = script_current_scene
+        step = SCRIPT_SCENES[step_index]
+    for hand, key in (('Left','left_count'), ('Right','right_count')):
+        expected = step[key]
+        if expected is None:
+            continue
+        hs = hand_states[hand]
+        if hs['candidate'] != expected or hs['frames'] < STABLE_FRAMES_REQUIRED:
+            return
+    # 每組指令發送間隔至少 1 秒，以免前一組相同角色還未完成。
+    now = time.monotonic()
+    if now - script_last_dispatch_time[0] < COMMAND_COOLDOWN_SECONDS:
+        return
+    commands = []
+    if step['left_count'] is not None:
+        commands.append('L' + str(step['left_count']))
+    if step['right_count'] is not None:
+        commands.append('R' + str(step['right_count']))
+    with script_dispatch_lock:
+        with state_lock:
+            if not script_started or script_current_scene != step_index:
+                return
+        for command in commands:
+            if not send_arduino_command(command):
+                print('劇本指令失敗，請確認 Arduino 連線：' + command)
+                return
+        script_last_dispatch_time[0] = time.monotonic()
+        with state_lock:
+            if step['left_count'] is not None:
+                left_character_command = 'L' + str(step['left_count'])
+            if step['right_count'] is not None:
+                right_character_command = 'R' + str(step['right_count'])
+            script_last_action = step['action_code']
+            script_last_action_name = step['action_name']
+            script_current_scene += 1
+            if script_current_scene >= len(SCRIPT_SCENES):
+                script_finished = True
+                script_started = False
+        print(f"劇本步驟 {step_index+1}/{len(SCRIPT_SCENES)}：{', '.join(commands)}")
+
+
+script_dispatch_lock = threading.Lock()
+script_last_dispatch_time = [0.0]
+
+def vision_thread():
+
+    global latest_output_frame
+
+    global right_hand_finger_count, left_hand_finger_count
+
+    global right_hand_action, left_hand_action
+
+    global right_character_command, left_character_command
+
+    frame_count = 0
+
+    last_processed_frame_id = -1
+
+    fps_start_time = time.time()
+
+    fps = 0.0
+
+    while True:
+
+        with camera_frame_lock:
+
+            frame = latest_camera_frame.copy() if latest_camera_frame is not None else None
+
+            current_frame_id = camera_frame_id
+
+        if frame is None:
+
+            time.sleep(0.01)
+
+            continue
+
+        if current_frame_id == last_processed_frame_id:
+
+            time.sleep(0.005)
+
+            continue
+
+        last_processed_frame_id = current_frame_id
+
+        if VIDEO_MIRROR:
+            frame = cv2.flip(frame, 1)
+
+        frame_count += 1
+
+        if frame_count % 10 == 0:
+
+            elapsed_time = time.time() - fps_start_time
+
+            if elapsed_time > 0:
+
+                fps = round(10 / elapsed_time, 1)
+
+            fps_start_time = time.time()
+
+        if frame_count % 2 == 0:
+
+            image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+            results = hands.process(image_rgb)
+
+            seen_hands = set()
+
+            if results.multi_hand_landmarks:
+
+                for hand_landmarks, handedness in zip(
+
+                        results.multi_hand_landmarks, results.multi_handedness):
+
+                    hand_label = handedness.classification[0].label
+
+                    seen_hands.add(hand_label)
+
+                    mp_draw.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
+
+                    finger_count = count_fingers(hand_landmarks)
+
+                    action_name = get_hand_action_name(finger_count)
+
+                    with state_lock:
+
+                        if hand_label == 'Right':
+
+                            right_hand_finger_count = finger_count
+
+                            right_hand_action = action_name
+
+                        elif hand_label == 'Left':
+
+                            left_hand_finger_count = finger_count
+
+                            left_hand_action = action_name
+
+                    if hand_label in hand_states:
+
+                        if video_play_event.is_set():
+                            analyze_hand_gesture(hand_label, finger_count)
+
+                    frame_height, frame_width = frame.shape[:2]
+
+                    wrist = hand_landmarks.landmark[0]
+
+                    text_x = int(wrist.x * frame_width)
+
+                    text_y = int(wrist.y * frame_height) - 20
+
+                    character_text = 'P1' if hand_label == 'Right' else 'P2'
+
+                    cv2.putText(frame,
+
+                                f'{character_text} {hand_label}: {finger_count} / {action_name}',
+
+                                (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX,
+
+                                0.65, (0, 255, 255), 2)
+
+            if 'Right' not in seen_hands:
+
+                with state_lock:
+
+                    right_hand_finger_count = None
+
+                    right_hand_action = 'NOT_DETECTED'
+
+                    right_character_command = 'IDLE'
+
+                reset_hand_state('Right')
+
+            if 'Left' not in seen_hands:
+
+                with state_lock:
+
+                    left_hand_finger_count = None
+
+                    left_hand_action = 'NOT_DETECTED'
+
+                    left_character_command = 'IDLE'
+
+                reset_hand_state('Left')
+
+        if frame_count % 2 == 0:
+            if video_play_event.is_set():
+                process_script_step()
+
+        with state_lock:
+
+            right_fingers, left_fingers = right_hand_finger_count, left_hand_finger_count
+
+            right_action, left_action = right_hand_action, left_hand_action
+
+            right_cmd, left_cmd = right_character_command, left_character_command
+
+        right_text = right_fingers if right_fingers is not None else '-'
+
+        left_text = left_fingers if left_fingers is not None else '-'
+
+        for txt, pos, color in (
+
+            (f'FPS: {fps}', (10, 30), (0, 255, 0)),
+
+            (f'P1 Right: {right_text} / {right_action}', (10, 70), (255, 255, 0)),
+
+            (f'P2 Left: {left_text} / {left_action}', (10, 105), (255, 255, 0)),
+
+            (f'P1 CMD: {right_cmd}', (10, 140), (0, 0, 255)),
+
+            (f'P2 CMD: {left_cmd}', (10, 175), (255, 0, 255)),
+
+        ):
+
+            cv2.putText(frame, txt, pos, cv2.FONT_HERSHEY_SIMPLEX, 0.65, color, 2)
+
+        success, encoded = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 60])
+
+        if success:
+
+            with output_frame_lock:
+
+                latest_output_frame = encoded.tobytes()
+
+        time.sleep(0.01)
+
+
+
+def generate_frames():
+
+    while True:
+
+        with output_frame_lock:
+
+            frame_bytes = latest_output_frame
+
+        if frame_bytes is None:
+
+            time.sleep(0.01)
+
+            continue
+
+        yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n'
+
+               + frame_bytes + b'\r\n')
+
+        time.sleep(0.01)
+
+
+
+def generate_puppet_frames():
+
+    while True:
+
+        with puppet_frame_lock:
+
+            frame = puppet_frame
+
+        if frame is None:
+
+            time.sleep(0.05)
+
+            continue
+
+        yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n'
+
+               + frame + b'\r\n')
+
+        time.sleep(0.03)
+
+
+
+@app.route('/')
+
+def index():
+
+    return render_template('index.html')
+
+
+
+@app.route('/video_feed')
+
+def video_feed():
+
+    return Response(generate_frames(),
+
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
+
+
+
+@app.route('/phone')
+
+def phone_camera():
+
+    return render_template('phone.html')
+
+
+
+@app.route('/phone_frame', methods=['POST'])
+
+def phone_frame():
+
+    global puppet_frame, puppet_frame_time
+
+    if request.mimetype != 'image/jpeg':
+
+        return 'Content-Type 必須是 image/jpeg', 400
+
+    jpeg_data = request.get_data()
+
+    if not jpeg_data:
+
+        return '沒有收到影像', 400
+
+    with puppet_frame_lock:
+
+        puppet_frame = jpeg_data
+
+        puppet_frame_time = time.time()
+
+    return '', 204
+
+
+
+@app.route('/puppet_video_feed')
+
+def puppet_video_feed():
+
+    return Response(generate_puppet_frames(),
+
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
+
+
+
+@app.route('/viewer')
+
+def viewer():
+
+    return Response('''<!doctype html>
+
+<html lang="zh-TW"><head><meta charset="utf-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>實體戲偶接收畫面</title>
+
+<style>body{margin:0;background:#111;color:white;font-family:sans-serif;text-align:center}
+
+h1{font-size:20px;margin:14px 0}img{width:100%;max-width:1000px;height:auto;display:block;margin:0 auto}</style>
+
+</head><body><h1>實體戲偶接收畫面</h1>
+
+<img src="/puppet_video_feed" alt="實體戲偶即時影像"></body></html>''',
+
+                    mimetype='text/html')
+
+
+
+@app.route('/set_mode', methods=['POST'])
+
+def set_mode():
+
+    global system_mode, right_character_command, left_character_command, script_started
+
+    data = request.get_json(silent=True) or {}
+
+    mode = data.get('mode')
+
+    if mode not in ('script', 'free'):
+
+        return jsonify({'success': False, 'message': 'mode 必須是 script 或 free'}), 400
+
+    with state_lock:
+
+        system_mode = mode
+
+        right_character_command = 'IDLE'
+
+        left_character_command = 'IDLE'
+
+        if mode == 'free':
+
+            script_started = False
+
+    reset_hand_state('Right')
+
+    reset_hand_state('Left')
+
+    print(f'模式切換：{system_mode}')
+
+    return jsonify({'success': True, 'mode': system_mode})
+
+
+
+@app.route('/load_script', methods=['POST'])
+
+def load_script():
+
+    global system_mode, script_generated, script_started, script_finished
+
+    global script_current_scene, script_last_action, script_last_action_name
+
+    with state_lock:
+
+        system_mode = 'script'
+
+        script_generated = True
+
+        script_started = False
+
+        script_finished = False
+
+        script_current_scene = 0
+
+        script_last_action = 'NONE'
+
+        script_last_action_name = '尚未執行'
+
+    reset_hand_state('Right')
+
+    reset_hand_state('Left')
+
+    script_last_dispatch_time[0] = 0.0
+    print('劇本已載入：《雙俠論劍》')
+
+    return jsonify({'success': True, 'script_name': SCRIPT_NAME,
+
+                    'total_scenes': len(SCRIPT_SCENES)})
+
+
+
+@app.route('/start_script', methods=['POST'])
+
+def start_script():
+
+    global system_mode, script_started, script_finished
+
+    global script_current_scene, script_last_action, script_last_action_name
+
+    with state_lock:
+
+        if not script_generated:
+
+            return jsonify({'success': False, 'message': '請先載入劇本。'})
+
+        system_mode = 'script'
+
+        script_started = True
+
+        script_finished = False
+
+        script_current_scene = 0
+
+        script_last_action = 'NONE'
+
+        script_last_action_name = '尚未執行'
+
+    reset_hand_state('Right')
+
+    reset_hand_state('Left')
+
+    script_last_dispatch_time[0] = 0.0
+    print('劇本開始：《雙俠論劍》')
+
+    return jsonify({'success': True})
+
+
+
+@app.route('/state')
+
+def state():
+
+    current_time = time.time()
+
+    with puppet_frame_lock:
+
+        last_puppet_frame_time = puppet_frame_time
+
+    puppet_connected = (last_puppet_frame_time is not None and
+
+                        (current_time - last_puppet_frame_time) < 3.0)
+
+    with state_lock:
+
+        mode = system_mode
+
+        right_fingers, left_fingers = right_hand_finger_count, left_hand_finger_count
+
+        right_action, left_action = right_hand_action, left_hand_action
+
+        right_command, left_command = right_character_command, left_character_command
+
+        generated, started, finished = script_generated, script_started, script_finished
+
+        current_scene, last_action = script_current_scene, script_last_action
+
+        last_action_name = script_last_action_name
+
+    if right_fingers is not None:
+
+        detected_count, detected_hand = right_fingers, 'Right'
+
+        detected_action = UI_ACTION_NAMES.get(right_fingers, right_action)
+
+    elif left_fingers is not None:
+
+        detected_count, detected_hand = left_fingers, 'Left'
+
+        detected_action = UI_ACTION_NAMES.get(left_fingers, left_action)
+
+    else:
+
+        detected_count, detected_hand, detected_action = None, None, '尚未偵測'
+
+    scene = None
+
+    if generated and not finished and 0 <= current_scene < len(SCRIPT_SCENES):
+
+        scene = SCRIPT_SCENES[current_scene]
+
+    with video_status_lock:
+        video_snapshot = dict(video_status)
+    return jsonify({
+
+        'video': video_snapshot,
+        'puppet_connected': puppet_connected, 'mode': mode,
+
+        'detected_count': detected_count, 'detected_hand': detected_hand,
+
+        'current_detected_action': detected_action, 'free_actions': FREE_MODE_ACTION_LIST,
+
+        'arduino_connected': arduino is not None and arduino.is_open,
+        'simulation_mode': SIMULATION_MODE,
+
+        'character_1': {'hand': 'Right', 'finger_count': right_fingers,
+
+                        'action': right_action, 'command': right_command},
+
+        'character_2': {'hand': 'Left', 'finger_count': left_fingers,
+
+                        'action': left_action, 'command': left_command},
+
+        'generated': generated, 'started': started, 'finished': finished,
+
+        'script_name': SCRIPT_NAME, 'script_description': SCRIPT_DESCRIPTION,
+
+        'current_scene': current_scene,
+
+        'total_scenes': len(SCRIPT_SCENES) if generated else 0,
+
+        'scene': scene, 'last_action': last_action,
+
+        'last_action_name': last_action_name,
+
+    })
+
+
+
+@app.route('/get_command')
+
+def get_command():
+
+    with state_lock:
+
+        data = {
+
+            'character_1': {'hand': 'Right', 'finger_count': right_hand_finger_count,
+
+                            'action': right_hand_action, 'command': right_character_command},
+
+            'character_2': {'hand': 'Left', 'finger_count': left_hand_finger_count,
+
+                            'action': left_hand_action, 'command': left_character_command},
+
+            'arduino_connected': arduino is not None and arduino.is_open,
+
+        }
+
+    return jsonify(data)
+
+
+
+if __name__ == '__main__':
+
+    threading.Thread(target=arduino_feedback_thread, daemon=True).start()
+
+    threading.Thread(target=camera_thread, daemon=True).start()  # 影片讀取，不啟動 CSI
+
+    threading.Thread(target=vision_thread, daemon=True).start()
+
+    try:
+
+        app.run(host='0.0.0.0', port=5000, threaded=True, debug=False,
+
+                use_reloader=False, ssl_context=('certs/cert.pem', 'certs/key.pem'))
+
+    finally:
+
+        stop_camera_process()
+
+        if arduino is not None and arduino.is_open:
+
+            arduino.close()
+
+        print('掌中智戲已關閉並釋放相機、序列埠', flush=True)

@@ -1,0 +1,6675 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>掌中智戲｜AI 手勢互動皮影戲</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        :root {
+            --ink: #292522;
+            --deep-brown: #30231e;
+            --wine: #6d1f1a;
+            --wine-dark: #3f100e;
+            --wine-light: #8f342c;
+            --gold: #c79a45;
+            --gold-light: #e0bd72;
+            --paper: #f3efe7;
+            --paper-2: #fff8e9;
+            --panel: #ffffff;
+            --muted: #777;
+            --green: #2e7d32;
+        }
+
+        html,
+        body {
+            min-height: 100%;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Microsoft JhengHei", "Noto Sans TC", Arial, sans-serif;
+            background:
+                radial-gradient(circle at top, rgba(199, 154, 69, 0.10), transparent 32%),
+                var(--paper);
+            color: var(--ink);
+        }
+
+        body.intro-lock {
+            overflow: hidden;
+        }
+
+        /* =========================================================
+           開場舞台
+           ========================================================= */
+
+        .intro-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            overflow: hidden;
+            background: #160b08;
+            transition: opacity 0.55s ease, visibility 0.55s ease;
+        }
+
+        .intro-overlay.finished {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .stage-glow {
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(
+                    ellipse at center,
+                    rgba(255, 222, 145, 0.42) 0%,
+                    rgba(115, 68, 34, 0.18) 34%,
+                    rgba(16, 8, 6, 0.86) 82%
+                );
+            opacity: 0.35;
+            transition: opacity 2.2s ease;
+        }
+
+        .intro-overlay.opening .stage-glow {
+            opacity: 1;
+        }
+
+        .stage-frame {
+            position: absolute;
+            inset: 18px;
+            border: 2px solid rgba(224, 189, 114, 0.58);
+            box-shadow:
+                inset 0 0 0 7px rgba(54, 29, 17, 0.88),
+                inset 0 0 0 9px rgba(199, 154, 69, 0.22);
+            pointer-events: none;
+            z-index: 7;
+        }
+
+        .stage-top {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 76px;
+            z-index: 8;
+            background:
+                linear-gradient(
+                    to bottom,
+                    #4a1511 0%,
+                    #7b251f 38%,
+                    #4a1511 100%
+                );
+            border-bottom: 4px solid #b68338;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.38);
+        }
+
+        .stage-top::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: -12px;
+            height: 14px;
+            background:
+                repeating-linear-gradient(
+                    90deg,
+                    #b68338 0 12px,
+                    #d5ad5b 12px 20px,
+                    #8c5e26 20px 32px
+                );
+            clip-path: polygon(
+                0 0,
+                100% 0,
+                100% 50%,
+                98% 100%,
+                96% 50%,
+                94% 100%,
+                92% 50%,
+                90% 100%,
+                88% 50%,
+                86% 100%,
+                84% 50%,
+                82% 100%,
+                80% 50%,
+                78% 100%,
+                76% 50%,
+                74% 100%,
+                72% 50%,
+                70% 100%,
+                68% 50%,
+                66% 100%,
+                64% 50%,
+                62% 100%,
+                60% 50%,
+                58% 100%,
+                56% 50%,
+                54% 100%,
+                52% 50%,
+                50% 100%,
+                48% 50%,
+                46% 100%,
+                44% 50%,
+                42% 100%,
+                40% 50%,
+                38% 100%,
+                36% 50%,
+                34% 100%,
+                32% 50%,
+                30% 100%,
+                28% 50%,
+                26% 100%,
+                24% 50%,
+                22% 100%,
+                20% 50%,
+                18% 100%,
+                16% 50%,
+                14% 100%,
+                12% 50%,
+                10% 100%,
+                8% 50%,
+                6% 100%,
+                4% 50%,
+                2% 100%,
+                0 50%
+            );
+        }
+
+        .curtain {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 52%;
+            z-index: 5;
+            background:
+                linear-gradient(
+                    90deg,
+                    rgba(255, 255, 255, 0.05),
+                    transparent 10%,
+                    rgba(0, 0, 0, 0.22) 18%,
+                    rgba(255, 255, 255, 0.05) 27%,
+                    rgba(0, 0, 0, 0.25) 40%,
+                    rgba(255, 255, 255, 0.04) 52%,
+                    rgba(0, 0, 0, 0.24) 66%,
+                    rgba(255, 255, 255, 0.05) 78%,
+                    rgba(0, 0, 0, 0.24) 90%,
+                    rgba(255, 255, 255, 0.04)
+                ),
+                linear-gradient(#7d251f, #4f1512);
+            transition:
+                transform 2.45s cubic-bezier(0.72, 0, 0.28, 1),
+                filter 2.45s ease;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.58);
+        }
+
+        .curtain::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 16px;
+            background:
+                linear-gradient(
+                    to right,
+                    #8b642d,
+                    #d0a64f,
+                    #8b642d
+                );
+        }
+
+        .curtain-left {
+            left: 0;
+            transform-origin: left center;
+        }
+
+        .curtain-left::after {
+            right: 0;
+        }
+
+        .curtain-right {
+            right: 0;
+            transform-origin: right center;
+        }
+
+        .curtain-right::after {
+            left: 0;
+        }
+
+        .intro-overlay.opening .curtain-left {
+            transform: translateX(-96%);
+            filter: brightness(0.75);
+        }
+
+        .intro-overlay.opening .curtain-right {
+            transform: translateX(96%);
+            filter: brightness(0.75);
+        }
+
+        .intro-center {
+            position: absolute;
+            inset: 0;
+            z-index: 6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 90px 24px 32px;
+            transition:
+                opacity 0.8s ease,
+                transform 0.8s ease;
+        }
+
+        .intro-overlay.opening .intro-center {
+            opacity: 0;
+            transform: scale(0.96);
+            pointer-events: none;
+        }
+
+        .title-plaque {
+            width: min(650px, 88vw);
+            text-align: center;
+            padding: 34px 34px 28px;
+            color: #f6e5ba;
+            background:
+                linear-gradient(
+                    145deg,
+                    rgba(41, 22, 16, 0.94),
+                    rgba(83, 37, 24, 0.93)
+                );
+            border: 1px solid rgba(224, 189, 114, 0.65);
+            box-shadow:
+                0 22px 55px rgba(0, 0, 0, 0.42),
+                inset 0 0 0 5px rgba(199, 154, 69, 0.10);
+        }
+
+        .title-plaque::before,
+        .title-plaque::after {
+            content: "◆";
+            display: inline-block;
+            color: var(--gold-light);
+            font-size: 13px;
+            opacity: 0.8;
+        }
+
+        .intro-kicker {
+            margin: 8px 0 10px;
+            font-size: 13px;
+            letter-spacing: 0.32em;
+            color: #d8b66c;
+        }
+
+        .intro-title {
+            margin: 0;
+            font-size: clamp(42px, 7vw, 74px);
+            letter-spacing: 0.18em;
+            font-weight: 700;
+            text-shadow: 0 4px 18px rgba(0, 0, 0, 0.55);
+        }
+
+        .intro-subtitle {
+            margin: 13px 0 0;
+            font-size: clamp(15px, 2vw, 21px);
+            letter-spacing: 0.12em;
+            color: #e8d5a7;
+        }
+
+        .intro-divider {
+            width: 110px;
+            height: 1px;
+            margin: 24px auto 18px;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                var(--gold-light),
+                transparent
+            );
+        }
+
+        .intro-status {
+            min-height: 28px;
+            font-size: 15px;
+            color: #dfcca0;
+        }
+
+        .intro-status.connected {
+            color: #b9d9a4;
+        }
+
+        .intro-dot {
+            display: inline-block;
+            width: 9px;
+            height: 9px;
+            margin-right: 8px;
+            border-radius: 50%;
+            background: #a27e43;
+            box-shadow: 0 0 0 0 rgba(224, 189, 114, 0.55);
+            animation: waitingPulse 1.65s infinite;
+        }
+
+        .intro-status.connected .intro-dot {
+            background: #73a95e;
+            animation: none;
+        }
+
+        @keyframes waitingPulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(224, 189, 114, 0.45);
+            }
+
+            70% {
+                box-shadow: 0 0 0 9px rgba(224, 189, 114, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(224, 189, 114, 0);
+            }
+        }
+
+        .intro-actions {
+            margin-top: 22px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .intro-enter {
+            min-width: 190px;
+            border: 1px solid #d1aa59;
+            padding: 12px 22px;
+            border-radius: 4px;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            cursor: pointer;
+            color: #2d1c12;
+            background:
+                linear-gradient(
+                    to bottom,
+                    #e7c77e,
+                    #bd8f3f
+                );
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+        }
+
+        .intro-enter:hover {
+            filter: brightness(1.08);
+        }
+
+        .intro-skip {
+            border: none;
+            padding: 12px 14px;
+            color: rgba(246, 229, 186, 0.72);
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .intro-note {
+            margin-top: 12px;
+            font-size: 11px;
+            color: rgba(232, 213, 167, 0.56);
+        }
+
+        /* =========================================================
+           主介面
+           ========================================================= */
+
+        header {
+            position: relative;
+            background:
+                linear-gradient(
+                    115deg,
+                    #261914,
+                    #3b241c 58%,
+                    #291812
+                );
+            color: white;
+            padding: 18px 30px;
+            border-bottom: 3px solid #a97934;
+            box-shadow: 0 5px 18px rgba(0, 0, 0, 0.15);
+        }
+
+        header h1 {
+            margin: 0;
+            letter-spacing: 0.12em;
+        }
+
+        header p {
+            margin: 6px 0 0;
+            opacity: 0.78;
+        }
+
+        .header-tools {
+            position: absolute;
+            top: 50%;
+            right: 24px;
+            transform: translateY(-50%);
+            display: flex;
+            gap: 8px;
+        }
+
+        .header-tool {
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            color: white;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .header-tool:hover {
+            background: rgba(255, 255, 255, 0.14);
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: auto;
+            padding: 18px 12px 30px;
+        }
+
+        .panel {
+            background: var(--panel);
+            border-radius: 10px;
+            padding: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
+            border: 1px solid rgba(63, 44, 32, 0.06);
+        }
+
+        .panel h2 {
+            margin-top: 0;
+            margin-bottom: 6px;
+            font-size: 16px;
+        }
+
+        button {
+            border: none;
+            padding: 14px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            cursor: not-allowed;
+            opacity: 0.65;
+        }
+
+        .mode-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .mode-button {
+            background: #ddd4c8;
+        }
+
+        .mode-button.active {
+            background: #8c4e34;
+            color: white;
+            box-shadow: 0 5px 14px rgba(140, 78, 52, 0.20);
+        }
+
+        .primary {
+            background: #8c4e34;
+            color: white;
+        }
+
+        .secondary {
+            background: #ddd4c8;
+        }
+
+        .script-toolbar {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .main {
+            display: grid;
+            grid-template-columns: 1.35fr 0.65fr;
+            gap: 10px;
+            align-items: stretch;
+        }
+
+        .puppet-video-panel {
+            display: flex;
+            flex-direction: column;
+            padding: 14px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .puppet-video-panel::before {
+            content: "";
+            position: absolute;
+            inset: 0 0 auto;
+            height: 4px;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                #b78a40,
+                transparent
+            );
+        }
+
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            height: 100%;
+        }
+
+        .hand-panel {
+            padding: 14px;
+        }
+
+        .hand-panel .camera {
+            aspect-ratio: 16 / 9;
+        }
+
+        .action-panel {
+            flex-grow: 1;
+        }
+
+        .puppet-camera {
+            background:
+                radial-gradient(circle at center, #31261d, #111);
+            border-radius: 10px;
+            overflow: hidden;
+
+            /* 修正：舞台跟著左側面板自動撐高，不再固定只有 310px */
+            flex: 1 1 auto;
+            height: auto;
+            min-height: 0;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 5px solid #3a251b;
+            box-shadow:
+                inset 0 0 0 1px rgba(205, 166, 88, 0.50),
+                inset 0 0 25px rgba(0, 0, 0, 0.38);
+        }
+
+        .puppet-camera img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .status-card {
+            background: #f4f0ea;
+            border-radius: 8px;
+            padding: 6px 10px;
+            margin-top: 8px;
+            margin-bottom: 0;
+        }
+
+        .status-title {
+            color: #777;
+            font-size: 12px;
+        }
+
+        .status-value {
+            margin-top: 3px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .camera {
+            background: #111;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .camera img {
+            width: 100%;
+            display: block;
+        }
+
+        .detected {
+            margin-top: 8px;
+            padding: 7px 10px;
+            border-radius: 8px;
+            background: #f5f0e9;
+        }
+
+        .detected-label {
+            font-size: 11px;
+            margin-bottom: 2px;
+            color: #777;
+        }
+
+        .detected-value {
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 0;
+        }
+
+        .script-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 15px;
+        }
+
+        .script-name {
+            font-size: 27px;
+            font-weight: bold;
+        }
+
+        .script-description {
+            margin-top: 7px;
+            color: #777;
+            line-height: 1.6;
+        }
+
+        .scene-number {
+            background: #e6ddcf;
+            border-radius: 20px;
+            padding: 8px 13px;
+            white-space: nowrap;
+            font-weight: bold;
+        }
+
+        .progress-dots {
+            display: flex;
+            gap: 8px;
+            margin-top: 18px;
+        }
+
+        .progress-dot {
+            flex: 1;
+            height: 7px;
+            border-radius: 10px;
+            background: #ddd;
+        }
+
+        .progress-dot.done {
+            background: #8c4e34;
+        }
+
+        .progress-dot.current {
+            background: #bc852c;
+        }
+
+        .scene-title {
+            margin-top: 25px;
+            text-align: center;
+            font-size: 32px;
+            font-weight: bold;
+        }
+
+        .story-box {
+            margin-top: 18px;
+            padding: 18px;
+            background: #fff5d8;
+            border-left: 5px solid #bc852c;
+            border-radius: 9px;
+        }
+
+        .box-label {
+            font-size: 14px;
+            color: #777;
+            margin-bottom: 6px;
+        }
+
+        .story-text {
+            font-size: 21px;
+            font-weight: bold;
+            line-height: 1.6;
+        }
+
+        .operator-box {
+            margin-top: 18px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            text-align: center;
+            min-height: 210px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .gesture-icon {
+            font-size: 68px;
+            margin: 5px 0;
+        }
+
+        .gesture-name {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .operator-text {
+            margin-top: 8px;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        .puppet-box {
+            margin-top: 18px;
+            padding: 18px;
+            background: #f4f0ea;
+            border-radius: 12px;
+        }
+
+        .puppet-action {
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        .puppet-text {
+            margin-top: 7px;
+            line-height: 1.6;
+            color: #555;
+        }
+
+        .gesture-action-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .gesture-action-card {
+            display: grid;
+            grid-template-columns: 45px 1fr 20px 1fr;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 10px;
+            background: #f4f0ea;
+            border-radius: 8px;
+        }
+
+        .gesture-icon-large {
+            font-size: 24px;
+            text-align: center;
+        }
+
+        .gesture-name-display {
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .gesture-arrow {
+            text-align: center;
+            font-size: 16px;
+            color: #8c4e34;
+        }
+
+        .gesture-action-name {
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @media (max-width: 900px) {
+            .main {
+                grid-template-columns: 1fr;
+            }
+
+            .script-toolbar {
+                grid-template-columns: 1fr;
+            }
+
+            .header-tools {
+                position: static;
+                transform: none;
+                margin-top: 12px;
+            }
+
+            header {
+                padding-right: 20px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .stage-frame {
+                inset: 8px;
+            }
+
+            .stage-top {
+                height: 58px;
+            }
+
+            .intro-center {
+                padding-top: 70px;
+            }
+
+            .title-plaque {
+                padding: 28px 20px 22px;
+            }
+
+            .mode-selector {
+                gap: 7px;
+            }
+
+            .mode-button {
+                padding: 12px 8px;
+                font-size: 14px;
+            }
+
+            .puppet-camera {
+                flex: none;
+                height: 260px;
+                min-height: 260px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .curtain,
+            .intro-center,
+            .stage-glow,
+            .intro-overlay {
+                transition-duration: 0.01ms !important;
+            }
+        }
+    
+        /* =========================================================
+           舞台視覺 V2
+           目的：
+           1. 開場動畫與主介面連成同一個舞台
+           2. 減少白色圓角卡片與模板感
+           3. 保留原本所有 Flask / MediaPipe 功能
+           ========================================================= */
+
+        body {
+            background:
+                linear-gradient(rgba(90, 63, 40, 0.035) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(90, 63, 40, 0.025) 1px, transparent 1px),
+                #efe7d9;
+            background-size: 28px 28px;
+        }
+
+        .site-shell {
+            min-height: 100vh;
+            opacity: 0.62;
+            transform: scale(0.992);
+            filter: saturate(0.82) brightness(0.82);
+            transition:
+                opacity 1.1s ease,
+                transform 1.1s cubic-bezier(0.22, 1, 0.36, 1),
+                filter 1.2s ease;
+        }
+
+        .site-shell.is-revealed {
+            opacity: 1;
+            transform: scale(1);
+            filter: none;
+        }
+
+        header {
+            padding: 15px 30px 13px;
+            background:
+                linear-gradient(
+                    90deg,
+                    #21140f 0%,
+                    #382019 48%,
+                    #21140f 100%
+                );
+            border-bottom: 1px solid #b38a4d;
+            box-shadow: none;
+        }
+
+        header::after {
+            content: "";
+            position: absolute;
+            left: 30px;
+            right: 30px;
+            bottom: -1px;
+            height: 1px;
+            background:
+                linear-gradient(
+                    90deg,
+                    transparent,
+                    rgba(226, 191, 120, 0.9),
+                    transparent
+                );
+        }
+
+        header h1 {
+            font-family:
+                "Noto Serif TC",
+                "PMingLiU",
+                "Microsoft JhengHei",
+                serif;
+            font-size: 27px;
+            font-weight: 700;
+            letter-spacing: 0.24em;
+        }
+
+        header p {
+            margin-top: 3px;
+            font-size: 12px;
+            letter-spacing: 0.17em;
+            color: #d8c29b;
+            opacity: 0.88;
+        }
+
+        .header-tools {
+            gap: 5px;
+        }
+
+        .header-tool {
+            padding: 7px 11px;
+            border: none;
+            border-left: 1px solid rgba(218, 186, 124, 0.28);
+            border-radius: 0;
+            color: #d9c8a7;
+            background: transparent;
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 0.04em;
+        }
+
+        .header-tool:first-child {
+            border-left: none;
+        }
+
+        .header-tool:hover {
+            color: #fff1cf;
+            background: transparent;
+        }
+
+        .container {
+            max-width: 1540px;
+            padding: 16px 18px 34px;
+        }
+
+        .panel {
+            border-radius: 3px;
+            border: 1px solid #d5cab8;
+            background:
+                linear-gradient(
+                    180deg,
+                    rgba(255, 253, 248, 0.97),
+                    rgba(247, 241, 231, 0.97)
+                );
+            box-shadow:
+                0 4px 16px rgba(56, 38, 26, 0.06);
+        }
+
+        .panel h2 {
+            font-family:
+                "Noto Serif TC",
+                "PMingLiU",
+                "Microsoft JhengHei",
+                serif;
+            letter-spacing: 0.08em;
+        }
+
+        /* 模式切換改成戲單 / 分頁感，不再像兩顆大 App 按鈕 */
+        .mode-selector {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+            margin: 0 0 14px;
+            border-top: 1px solid #c9b99e;
+            border-bottom: 1px solid #c9b99e;
+            background: rgba(244, 237, 224, 0.74);
+        }
+
+        .mode-selector::before {
+            content: "演出方式";
+            margin-right: 18px;
+            color: #7d6b57;
+            font-size: 11px;
+            letter-spacing: 0.18em;
+        }
+
+        .mode-button {
+            position: relative;
+            min-width: 150px;
+            padding: 11px 22px 10px;
+            border-radius: 0;
+            background: transparent;
+            color: #6c5b49;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            transition:
+                color 0.28s ease,
+                background 0.28s ease;
+        }
+
+        .mode-button + .mode-button {
+            border-left: 1px solid #d9cdbb;
+        }
+
+        .mode-button::after {
+            content: "";
+            position: absolute;
+            left: 24%;
+            right: 24%;
+            bottom: -1px;
+            height: 2px;
+            transform: scaleX(0);
+            background: #87392d;
+            transition: transform 0.3s ease;
+        }
+
+        .mode-button.active {
+            color: #6d241d;
+            background: rgba(137, 67, 48, 0.045);
+            box-shadow: none;
+        }
+
+        .mode-button.active::after {
+            transform: scaleX(1);
+        }
+
+        .script-toolbar {
+            max-width: 720px;
+            margin: 0 auto 14px;
+            gap: 1px;
+            padding: 1px;
+            background: #cbbda6;
+        }
+
+        .script-toolbar button {
+            border-radius: 0;
+            padding: 11px 16px;
+            font-size: 13px;
+            letter-spacing: 0.06em;
+        }
+
+        .primary {
+            background: #743229;
+            color: #fff8e9;
+        }
+
+        .secondary {
+            background: #ede3d2;
+            color: #3e3025;
+        }
+
+        .main {
+            grid-template-columns: minmax(0, 1.48fr) minmax(330px, 0.52fr);
+            gap: 14px;
+            transition:
+                opacity 0.35s ease,
+                transform 0.35s ease;
+        }
+
+        /* 左邊是真正的戲台，視覺比控制欄更重要 */
+        .puppet-video-panel {
+            padding: 11px;
+            border-color: #6a4b31;
+            background:
+                linear-gradient(
+                    180deg,
+                    #37241a,
+                    #241711
+                );
+            box-shadow:
+                0 10px 28px rgba(45, 29, 20, 0.18),
+                inset 0 0 0 1px rgba(208, 166, 87, 0.24);
+        }
+
+        .puppet-video-panel::before {
+            height: 2px;
+            background:
+                linear-gradient(
+                    90deg,
+                    transparent 3%,
+                    #d2a654 18%,
+                    #8e672e 50%,
+                    #d2a654 82%,
+                    transparent 97%
+                );
+        }
+
+        .puppet-video-panel h2 {
+            margin: 2px 4px 9px;
+            color: #e9d2a2;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .puppet-camera {
+            position: relative;
+            border-radius: 1px;
+            border: 1px solid #b88d49;
+            background: #100d0b;
+            box-shadow:
+                inset 0 0 0 5px #271811,
+                inset 0 0 0 6px rgba(210, 168, 84, 0.46),
+                inset 0 0 38px rgba(0, 0, 0, 0.45);
+        }
+
+        .puppet-camera::before {
+            content: "";
+            position: absolute;
+            inset: 7px;
+            pointer-events: none;
+            border: 1px solid rgba(226, 192, 123, 0.26);
+            z-index: 2;
+        }
+
+        .puppet-camera img {
+            position: relative;
+            z-index: 1;
+        }
+
+        .puppet-video-panel .status-card {
+            margin: 8px 0 0;
+            padding: 7px 10px 6px;
+            border-radius: 0;
+            border-top: 1px solid rgba(220, 185, 115, 0.32);
+            background: transparent;
+        }
+
+        .puppet-video-panel .status-title {
+            color: #a9987e;
+            font-size: 10px;
+            letter-spacing: 0.16em;
+        }
+
+        .puppet-video-panel .status-value {
+            margin-top: 2px;
+            font-size: 15px;
+            letter-spacing: 0.04em;
+        }
+
+        .right-panel {
+            gap: 10px;
+            opacity: 0;
+            transform: translateX(14px);
+            transition:
+                opacity 0.7s ease 0.28s,
+                transform 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.28s;
+        }
+
+        .site-shell.is-revealed .right-panel {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .hand-panel,
+        .action-panel {
+            padding: 12px;
+        }
+
+        .hand-panel {
+            border-top: 3px solid #6a3a2c;
+        }
+
+        .action-panel {
+            border-top: 3px solid #a97c39;
+        }
+
+        .camera {
+            border-radius: 2px;
+            border: 1px solid #3c3027;
+        }
+
+        .detected {
+            margin-top: 7px;
+            padding: 8px 10px;
+            border-radius: 0;
+            border-left: 2px solid #8c4e34;
+            background: #eee6d9;
+        }
+
+        .detected-label {
+            color: #8d7b65;
+            letter-spacing: 0.12em;
+        }
+
+        .gesture-action-list {
+            gap: 0;
+            border-top: 1px solid #ddd1bf;
+        }
+
+        .gesture-action-card {
+            grid-template-columns: 40px 1fr 18px 1fr;
+            min-height: 53px;
+            padding: 7px 6px;
+            border-radius: 0;
+            border-bottom: 1px solid #ddd1bf;
+            background: transparent;
+        }
+
+        .gesture-action-card:hover {
+            background: rgba(132, 79, 51, 0.035);
+        }
+
+        .gesture-icon-large {
+            font-size: 20px;
+            filter: saturate(0.72);
+        }
+
+        .gesture-name-display {
+            font-size: 12px;
+            color: #5b4b3c;
+        }
+
+        .gesture-arrow {
+            color: #9c6c45;
+            font-size: 13px;
+        }
+
+        .gesture-action-name {
+            font-size: 13px;
+            color: #2f2721;
+        }
+
+        #scriptPanel {
+            margin-top: 14px !important;
+            padding: 18px 22px 22px;
+            border-top: 3px solid #7d3a2f;
+            transition:
+                opacity 0.32s ease,
+                transform 0.32s ease;
+        }
+
+        .script-name {
+            font-family:
+                "Noto Serif TC",
+                "PMingLiU",
+                "Microsoft JhengHei",
+                serif;
+            font-size: 25px;
+            letter-spacing: 0.06em;
+        }
+
+        .scene-number {
+            border-radius: 2px;
+            padding: 7px 11px;
+            background: #e4d7c4;
+            color: #5a4939;
+            font-size: 12px;
+        }
+
+        .story-box,
+        .operator-box,
+        .puppet-box {
+            border-radius: 2px;
+            box-shadow: none;
+        }
+
+        .story-box {
+            background: #f5ead0;
+            border-left: 3px solid #a97b38;
+        }
+
+        .operator-box {
+            border-color: #d6c8b5;
+            background: rgba(255, 253, 248, 0.64);
+        }
+
+        .puppet-box {
+            background: #e9dfcf;
+        }
+
+        /* 切換劇本 / 即興操偶時，做極短的舞台轉場 */
+        body.mode-switching .main,
+        body.mode-switching #scriptToolbar,
+        body.mode-switching #scriptPanel {
+            opacity: 0.48;
+            transform: translateY(4px);
+        }
+
+        /* 開場中心不要像 App 卡片，改成舞台題字 */
+        .title-plaque {
+            width: min(720px, 88vw);
+            padding: 16px 24px 20px;
+            border: none;
+            background: transparent;
+            box-shadow: none;
+            text-shadow: 0 4px 18px rgba(0, 0, 0, 0.58);
+        }
+
+        .title-plaque::before,
+        .title-plaque::after {
+            content: "";
+            display: block;
+            width: 92px;
+            height: 1px;
+            margin: 8px auto;
+            background:
+                linear-gradient(
+                    90deg,
+                    transparent,
+                    #d2ad64,
+                    transparent
+                );
+        }
+
+        .intro-kicker {
+            margin: 8px 0 13px;
+            font-size: 11px;
+            letter-spacing: 0.38em;
+            color: #cdb47b;
+        }
+
+        .intro-title {
+            font-family:
+                "Noto Serif TC",
+                "PMingLiU",
+                "Microsoft JhengHei",
+                serif;
+            font-size: clamp(46px, 7vw, 80px);
+            font-weight: 700;
+            letter-spacing: 0.24em;
+            color: #f3deb0;
+        }
+
+        .intro-subtitle {
+            margin-top: 10px;
+            font-size: clamp(13px, 1.8vw, 18px);
+            letter-spacing: 0.22em;
+            color: #cdb98c;
+        }
+
+        .intro-divider {
+            margin: 19px auto 16px;
+            opacity: 0.75;
+        }
+
+        .intro-enter {
+            min-width: 176px;
+            padding: 11px 20px;
+            border: 1px solid #c59b53;
+            border-radius: 1px;
+            background: transparent;
+            color: #e9d4a5;
+            box-shadow: none;
+            font-size: 13px;
+            letter-spacing: 0.13em;
+            transition:
+                color 0.2s ease,
+                background 0.2s ease,
+                border-color 0.2s ease;
+        }
+
+        .intro-enter:hover {
+            filter: none;
+            color: #2a1c13;
+            background: #d3ac62;
+            border-color: #d3ac62;
+        }
+
+        .intro-skip {
+            color: rgba(235, 215, 174, 0.55);
+            letter-spacing: 0.05em;
+        }
+
+        .intro-overlay.opening .intro-center {
+            opacity: 0;
+            transform:
+                translateY(-9vh)
+                scale(0.88);
+        }
+
+        .curtain {
+            transition:
+                transform 2.65s cubic-bezier(0.77, 0, 0.18, 1),
+                filter 2.65s ease;
+        }
+
+        .intro-overlay.opening .curtain-left {
+            transform: translateX(-98%);
+        }
+
+        .intro-overlay.opening .curtain-right {
+            transform: translateX(98%);
+        }
+
+        @media (max-width: 900px) {
+            .main {
+                grid-template-columns: 1fr;
+            }
+
+            .right-panel {
+                opacity: 1;
+                transform: none;
+            }
+
+            .mode-selector {
+                justify-content: stretch;
+            }
+
+            .mode-selector::before {
+                display: none;
+            }
+
+            .mode-button {
+                min-width: 0;
+                flex: 1;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding-left: 9px;
+                padding-right: 9px;
+            }
+
+            .mode-button {
+                font-size: 13px;
+                letter-spacing: 0.05em;
+                padding-left: 8px;
+                padding-right: 8px;
+            }
+        }
+
+    
+        /* =========================================================
+           劇本區 V3：戲單 / 幕次
+           ========================================================= */
+
+        .script-playbill {
+            position: relative;
+            overflow: hidden;
+            padding: 0 !important;
+            border: 1px solid #b9a686 !important;
+            border-top: 3px solid #743229 !important;
+            background:
+                radial-gradient(
+                    circle at 50% 15%,
+                    rgba(255, 255, 255, 0.62),
+                    transparent 30%
+                ),
+                repeating-linear-gradient(
+                    0deg,
+                    rgba(105, 80, 46, 0.017) 0 1px,
+                    transparent 1px 5px
+                ),
+                #f6efdf !important;
+            box-shadow:
+                0 9px 28px rgba(62, 42, 26, 0.08) !important;
+        }
+
+        .script-playbill::before,
+        .script-playbill::after {
+            content: "";
+            position: absolute;
+            width: 86px;
+            height: 86px;
+            pointer-events: none;
+            opacity: 0.22;
+            border-color: #805438;
+        }
+
+        .script-playbill::before {
+            top: 10px;
+            left: 10px;
+            border-top: 1px solid;
+            border-left: 1px solid;
+        }
+
+        .script-playbill::after {
+            right: 10px;
+            bottom: 10px;
+            border-right: 1px solid;
+            border-bottom: 1px solid;
+        }
+
+        .playbill-ornament {
+            position: absolute;
+            top: 21px;
+            width: 54px;
+            height: 1px;
+            background:
+                linear-gradient(
+                    90deg,
+                    transparent,
+                    #9c754b
+                );
+            opacity: 0.72;
+        }
+
+        .playbill-ornament::after {
+            content: "◆";
+            position: absolute;
+            top: -8px;
+            font-size: 10px;
+            color: #9c754b;
+        }
+
+        .playbill-ornament-left {
+            left: 22px;
+        }
+
+        .playbill-ornament-left::after {
+            right: -1px;
+        }
+
+        .playbill-ornament-right {
+            right: 22px;
+            transform: scaleX(-1);
+        }
+
+        .playbill-heading {
+            padding: 20px 28px 16px;
+            background:
+                linear-gradient(
+                    180deg,
+                    rgba(118, 61, 43, 0.045),
+                    transparent
+                );
+        }
+
+        .playbill-eyebrow {
+            margin-bottom: 8px;
+            text-align: center;
+            color: #8a6947;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.45em;
+        }
+
+        .script-playbill .script-header {
+            align-items: center;
+        }
+
+        .script-playbill .script-name {
+            font-size: 28px;
+            color: #3f2b21;
+        }
+
+        .script-playbill .script-description {
+            max-width: 820px;
+            margin-top: 5px;
+            color: #756453;
+            font-size: 13px;
+        }
+
+        .script-playbill .scene-number {
+            min-width: 96px;
+            text-align: center;
+            border: 1px solid #b9a78b;
+            background: transparent;
+            color: #6f5037;
+            font-size: 11px;
+            letter-spacing: 0.08em;
+        }
+
+        .playbill-rule {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            gap: 12px;
+            padding: 0 28px;
+            color: #92734f;
+        }
+
+        .playbill-rule span {
+            height: 1px;
+            background:
+                linear-gradient(
+                    90deg,
+                    transparent,
+                    #b49a74
+                );
+        }
+
+        .playbill-rule span:last-child {
+            transform: scaleX(-1);
+        }
+
+        .playbill-rule b {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.35em;
+        }
+
+        .scene-track {
+            display: grid !important;
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+            gap: 0 !important;
+            margin: 14px 28px 0 !important;
+            border-top: 1px solid #cbb99c;
+            border-bottom: 1px solid #cbb99c;
+        }
+
+        .scene-track .progress-dot {
+            position: relative;
+            height: auto !important;
+            min-height: 64px;
+            padding: 10px 8px 8px;
+            border-radius: 0 !important;
+            background: transparent !important;
+            text-align: center;
+            color: #9a8972;
+        }
+
+        .scene-track .progress-dot + .progress-dot {
+            border-left: 1px solid #dfd2bd;
+        }
+
+        .scene-track .progress-dot::before {
+            content: "";
+            display: block;
+            width: 8px;
+            height: 8px;
+            margin: 0 auto 7px;
+            border: 1px solid #b8a387;
+            border-radius: 50%;
+            background: #f6efdf;
+            transition:
+                transform 0.25s ease,
+                background 0.25s ease,
+                border-color 0.25s ease;
+        }
+
+        .scene-track .progress-dot.done {
+            color: #7c6956;
+        }
+
+        .scene-track .progress-dot.done::before {
+            border-color: #744136;
+            background: #744136;
+        }
+
+        .scene-track .progress-dot.current {
+            color: #6b2f27;
+            background:
+                linear-gradient(
+                    180deg,
+                    rgba(137, 65, 48, 0.06),
+                    transparent
+                ) !important;
+        }
+
+        .scene-track .progress-dot.current::before {
+            transform: scale(1.35);
+            border-color: #8b4436;
+            background: #c39250;
+            box-shadow:
+                0 0 0 4px rgba(195, 146, 80, 0.13);
+        }
+
+        .scene-step-number {
+            display: block;
+            font-size: 9px;
+            letter-spacing: 0.12em;
+            opacity: 0.72;
+        }
+
+        .scene-step-name {
+            display: block;
+            margin-top: 3px;
+            font-family:
+                "Noto Serif TC",
+                "PMingLiU",
+                "Microsoft JhengHei",
+                serif;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+        }
+
+        .current-scene-stage {
+            margin: 18px 28px 0;
+            padding: 18px 26px 20px;
+            text-align: center;
+            border: 1px solid rgba(170, 145, 108, 0.58);
+            background:
+                radial-gradient(
+                    ellipse at center top,
+                    rgba(255, 251, 234, 0.96),
+                    rgba(237, 224, 199, 0.78)
+                );
+        }
+
+        .scene-kicker {
+            color: #987750;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.45em;
+        }
+
+        .script-playbill .scene-title {
+            margin-top: 5px;
+            font-family:
+                "Noto Serif TC",
+                "PMingLiU",
+                "Microsoft JhengHei",
+                serif;
+            font-size: 30px;
+            color: #3b2b21;
+            letter-spacing: 0.12em;
+        }
+
+        .scene-divider {
+            width: 62px;
+            height: 1px;
+            margin: 9px auto 13px;
+            background:
+                linear-gradient(
+                    90deg,
+                    transparent,
+                    #a27b49,
+                    transparent
+                );
+        }
+
+        .scene-story {
+            max-width: 920px;
+            margin: auto;
+        }
+
+        .scene-story .box-label {
+            margin-bottom: 4px;
+            color: #9a8467;
+            font-size: 10px;
+            letter-spacing: 0.2em;
+        }
+
+        .script-playbill .story-text {
+            font-size: 17px;
+            font-weight: 600;
+            line-height: 1.7;
+            color: #534235;
+        }
+
+        .performance-cues {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+            margin-top: 16px;
+            border-top: 1px solid #cabb9f;
+        }
+
+        .cue-panel {
+            min-height: 132px;
+            padding: 14px 22px 16px;
+            background:
+                rgba(255, 252, 244, 0.44);
+        }
+
+        .cue-panel + .cue-panel {
+            border-left: 1px solid #cabb9f;
+        }
+
+        .cue-heading {
+            margin-bottom: 10px;
+            color: #8b7254;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.25em;
+        }
+
+        .cue-body {
+            display: grid;
+            grid-template-columns: 68px 1fr;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .script-playbill .gesture-icon {
+            margin: 0;
+            font-size: 46px;
+            text-align: center;
+            filter: saturate(0.68);
+        }
+
+        .script-playbill .gesture-name {
+            font-size: 18px;
+            color: #3f3025;
+        }
+
+        .script-playbill .operator-text {
+            margin-top: 5px;
+            font-size: 12px;
+            line-height: 1.55;
+            color: #776653;
+        }
+
+        .puppet-symbol {
+            width: 54px;
+            height: 54px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: auto;
+            border: 1px solid #8e5f3f;
+            border-radius: 50%;
+            font-family:
+                "Noto Serif TC",
+                "PMingLiU",
+                serif;
+            font-size: 22px;
+            color: #744033;
+            background:
+                radial-gradient(
+                    circle,
+                    #f7e8c9,
+                    #dfc99f
+                );
+        }
+
+        .script-playbill .puppet-action {
+            font-size: 18px;
+            color: #3f3025;
+        }
+
+        .script-playbill .puppet-text {
+            margin-top: 5px;
+            font-size: 12px;
+            line-height: 1.55;
+            color: #776653;
+        }
+
+        @media (max-width: 900px) {
+            .scene-track {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .scene-track .progress-dot:nth-child(4) {
+                border-left: none;
+            }
+
+            .scene-track .progress-dot:nth-child(n+4) {
+                border-top: 1px solid #dfd2bd;
+            }
+
+            .performance-cues {
+                grid-template-columns: 1fr;
+            }
+
+            .cue-panel + .cue-panel {
+                border-left: none;
+                border-top: 1px solid #cabb9f;
+            }
+        }
+
+        @media (max-width: 560px) {
+            .playbill-heading,
+            .playbill-rule {
+                padding-left: 16px;
+                padding-right: 16px;
+            }
+
+            .scene-track {
+                margin-left: 16px !important;
+                margin-right: 16px !important;
+            }
+
+            .current-scene-stage {
+                margin-left: 16px;
+                margin-right: 16px;
+                padding-left: 16px;
+                padding-right: 16px;
+            }
+
+            .script-playbill .script-header {
+                align-items: flex-start;
+            }
+
+            .script-playbill .script-name {
+                font-size: 23px;
+            }
+        }
+
+    
+        /* =========================================================
+           V4：舞台比例 + 左右手分開顯示
+           ========================================================= */
+
+        /* 左側舞台不要再跟右側整欄一起被撐到超高 */
+        .main {
+            grid-template-columns:
+                minmax(0, 1.16fr)
+                minmax(430px, 0.84fr);
+            align-items: start;
+            gap: 14px;
+        }
+
+        .puppet-video-panel {
+            align-self: start;
+            height: auto;
+        }
+
+        /* 桌面版固定成接近 16:9 的舞台比例 */
+        .puppet-camera {
+            flex: none !important;
+            width: 100%;
+            height: auto !important;
+            min-height: 0 !important;
+            aspect-ratio: 16 / 9;
+        }
+
+        .puppet-camera img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* 右側不強迫跟左側一樣高 */
+        .right-panel {
+            height: auto;
+        }
+
+        /* =========================================================
+           左 / 右手目前偵測
+           ========================================================= */
+
+        .hand-detection-area {
+            margin-top: 8px;
+            border-top: 1px solid #d9cdbb;
+        }
+
+        .hand-detection-title {
+            padding: 7px 2px 6px;
+            color: #8d7b65;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.18em;
+        }
+
+        .hand-detection-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 7px;
+        }
+
+        .hand-detection-card {
+            min-width: 0;
+            padding: 9px 10px 8px;
+            border: 1px solid #ddd1bf;
+            background:
+                rgba(239, 231, 218, 0.72);
+            transition:
+                border-color 0.22s ease,
+                background 0.22s ease,
+                transform 0.22s ease;
+        }
+
+        .hand-detection-card.active {
+            border-color: #a46c45;
+            background:
+                rgba(246, 235, 214, 0.94);
+            transform: translateY(-1px);
+        }
+
+        .hand-detection-card.right-hand {
+            border-left: 3px solid #794038;
+        }
+
+        .hand-detection-card.left-hand {
+            border-left: 3px solid #b48742;
+        }
+
+        .hand-detection-label {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 5px;
+        }
+
+        .hand-detection-name {
+            color: #3f3025;
+            font-family:
+                "Noto Serif TC",
+                "PMingLiU",
+                "Microsoft JhengHei",
+                serif;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+        }
+
+        .hand-detection-character {
+            color: #9a846b;
+            font-size: 9px;
+            letter-spacing: 0.08em;
+        }
+
+        .hand-detection-value {
+            min-height: 22px;
+            color: #2f2721;
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1.45;
+        }
+
+        .hand-detection-value.empty {
+            color: #948777;
+            font-weight: 500;
+        }
+
+        .hand-detection-arrow {
+            display: inline-block;
+            margin: 0 5px;
+            color: #8c4e34;
+        }
+
+        @media (max-width: 1100px) {
+            .main {
+                grid-template-columns:
+                    minmax(0, 1.05fr)
+                    minmax(360px, 0.95fr);
+            }
+        }
+
+        @media (max-width: 900px) {
+            .main {
+                grid-template-columns: 1fr;
+            }
+
+            .puppet-camera {
+                aspect-ratio: 16 / 9;
+            }
+        }
+
+        @media (max-width: 560px) {
+            .hand-detection-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .puppet-camera {
+                height: auto !important;
+                min-height: 0 !important;
+                aspect-ratio: 16 / 9;
+            }
+        }
+
+    
+        /* =========================================================
+           V5：自由操偶模式對齊
+           左側 = 實體戲偶
+           右上 = 手部辨識
+           右下 = 手勢對應
+           ========================================================= */
+
+        /* 只在自由操偶模式套用，劇本模式維持原本版面 */
+        body.free-mode .main {
+            height: clamp(
+                620px,
+                calc(100vh - 170px),
+                760px
+            );
+
+            grid-template-columns:
+                minmax(0, 1.2fr)
+                minmax(430px, 0.8fr);
+
+            align-items: stretch;
+            gap: 14px;
+        }
+
+        /* =====================================================
+           左側：實體戲偶舞台
+           整個左欄高度跟右欄完全相同
+           ===================================================== */
+
+        body.free-mode .puppet-video-panel {
+            height: 100%;
+            min-height: 0;
+            align-self: stretch;
+
+            display: flex;
+            flex-direction: column;
+        }
+
+        body.free-mode .puppet-video-panel h2 {
+            flex: 0 0 auto;
+        }
+
+        body.free-mode .puppet-camera {
+            flex: 1 1 auto !important;
+
+            width: 100%;
+            height: auto !important;
+            min-height: 0 !important;
+
+            /* 自由模式不硬鎖 16:9，
+               讓畫面直接填滿左側剩餘舞台 */
+            aspect-ratio: auto !important;
+        }
+
+        body.free-mode .puppet-camera img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        body.free-mode .puppet-video-panel .status-card {
+            flex: 0 0 auto;
+        }
+
+        /* =====================================================
+           右側：固定切成上下兩區
+           ===================================================== */
+
+        body.free-mode .right-panel {
+            height: 100%;
+            min-height: 0;
+
+            display: grid;
+            grid-template-rows:
+                minmax(0, 1.08fr)
+                minmax(0, 0.92fr);
+
+            gap: 14px;
+        }
+
+        /* =====================================================
+           右上：即時手勢辨識
+           ===================================================== */
+
+        body.free-mode .hand-panel {
+            min-height: 0;
+
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        body.free-mode .hand-panel h2 {
+            flex: 0 0 auto;
+        }
+
+        body.free-mode .hand-panel .camera {
+            flex: 1 1 auto;
+            min-height: 0;
+
+            /* 讓攝影機畫面填滿右上剩餘空間 */
+            aspect-ratio: auto;
+        }
+
+        body.free-mode .hand-panel .camera img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        body.free-mode .hand-detection-area {
+            flex: 0 0 auto;
+        }
+
+        /* =====================================================
+           右下：手勢 → 戲偶動作
+           五個動作平均塞進右下區
+           ===================================================== */
+
+        body.free-mode .action-panel {
+            min-height: 0;
+
+            display: flex;
+            flex-direction: column;
+
+            overflow: hidden;
+        }
+
+        body.free-mode .action-panel h2 {
+            flex: 0 0 auto;
+            margin-bottom: 6px;
+        }
+
+        body.free-mode .gesture-action-list {
+            flex: 1 1 auto;
+            min-height: 0;
+
+            display: grid;
+            grid-template-rows:
+                repeat(5, minmax(0, 1fr));
+
+            gap: 0;
+            overflow: hidden;
+        }
+
+        body.free-mode .gesture-action-card {
+            min-height: 0;
+            height: auto;
+
+            padding: 5px 7px;
+
+            grid-template-columns:
+                38px
+                minmax(0, 1fr)
+                18px
+                minmax(0, 0.9fr);
+        }
+
+        body.free-mode .gesture-icon-large {
+            font-size: 18px;
+        }
+
+        body.free-mode .gesture-name-display {
+            font-size: 12px;
+        }
+
+        body.free-mode .gesture-action-name {
+            font-size: 12px;
+        }
+
+        /* =====================================================
+           中等寬度
+           ===================================================== */
+
+        @media (max-width: 1200px) {
+            body.free-mode .main {
+                grid-template-columns:
+                    minmax(0, 1.08fr)
+                    minmax(390px, 0.92fr);
+            }
+        }
+
+        /* =====================================================
+           平板 / 手機才改回上下排列
+           ===================================================== */
+
+        @media (max-width: 900px) {
+            body.free-mode .main {
+                height: auto;
+                grid-template-columns: 1fr;
+            }
+
+            body.free-mode .puppet-video-panel {
+                height: auto;
+            }
+
+            body.free-mode .puppet-camera {
+                flex: none !important;
+                aspect-ratio: 16 / 9 !important;
+            }
+
+            body.free-mode .right-panel {
+                height: auto;
+                display: flex;
+                flex-direction: column;
+            }
+
+            body.free-mode .hand-panel .camera {
+                flex: none;
+                aspect-ratio: 16 / 9;
+            }
+
+            body.free-mode .gesture-action-list {
+                display: flex;
+                flex-direction: column;
+            }
+        }
+
+    
+        /* =========================================================
+           V6：自由操偶畫面高度調整
+           目標：
+           1. 不再把手部辨識畫面壓扁
+           2. 允許整頁稍微往下延伸、必要時捲動
+           3. 左右欄仍維持頂端 / 底端對齊
+           ========================================================= */
+
+        body.free-mode .main {
+            /* 原本太努力塞進單一視窗，現在刻意拉高 */
+            height: clamp(
+                760px,
+                82vh,
+                880px
+            );
+
+            /* 稍微增加與上方模式切換的距離 */
+            margin-top: 10px;
+        }
+
+        /* 右側上半部變高：
+           約 61% 手部辨識 / 39% 動作表 */
+        body.free-mode .right-panel {
+            grid-template-rows:
+                minmax(0, 1.22fr)
+                minmax(0, 0.78fr);
+        }
+
+        /* 手部畫面保留足夠高度，不讓左右手狀態卡把影像擠扁 */
+        body.free-mode .hand-panel .camera {
+            min-height: 300px;
+        }
+
+        /* 左右手偵測資訊稍微收斂高度，把空間留給影像 */
+        body.free-mode .hand-detection-area {
+            margin-top: 6px;
+        }
+
+        body.free-mode .hand-detection-title {
+            padding-top: 5px;
+            padding-bottom: 4px;
+        }
+
+        body.free-mode .hand-detection-card {
+            padding-top: 7px;
+            padding-bottom: 7px;
+        }
+
+        /* 右下動作表略微壓縮行距，但保留可讀性 */
+        body.free-mode .action-panel {
+            padding-top: 10px;
+            padding-bottom: 10px;
+        }
+
+        body.free-mode .gesture-action-card {
+            padding-top: 4px;
+            padding-bottom: 4px;
+        }
+
+        /* 中型筆電仍然保留較高的手勢畫面 */
+        @media (max-width: 1200px) {
+            body.free-mode .main {
+                height: clamp(
+                    740px,
+                    84vh,
+                    840px
+                );
+            }
+
+            body.free-mode .hand-panel .camera {
+                min-height: 280px;
+            }
+        }
+
+        /* 平板 / 手機恢復自然高度 */
+        @media (max-width: 900px) {
+            body.free-mode .main {
+                height: auto;
+                margin-top: 8px;
+            }
+
+            body.free-mode .hand-panel .camera {
+                min-height: 0;
+            }
+        }
+
+    
+        /* =========================================================
+           V7：自由 / 劇本共用舞台版型
+           ========================================================= */
+
+        /* 劇本模式也使用與自由操偶相同的左右舞台結構 */
+        body.script-mode .main {
+            height: clamp(
+                760px,
+                82vh,
+                900px
+            );
+
+            margin-top: 10px;
+
+            grid-template-columns:
+                minmax(0, 1.2fr)
+                minmax(430px, 0.8fr);
+
+            align-items: stretch;
+            gap: 14px;
+        }
+
+        body.script-mode .puppet-video-panel {
+            height: 100%;
+            min-height: 0;
+            align-self: stretch;
+
+            display: flex;
+            flex-direction: column;
+        }
+
+        body.script-mode .puppet-video-panel h2 {
+            flex: 0 0 auto;
+        }
+
+        body.script-mode .puppet-camera {
+            flex: 1 1 auto !important;
+            width: 100%;
+            height: auto !important;
+            min-height: 0 !important;
+            aspect-ratio: auto !important;
+        }
+
+        body.script-mode .puppet-camera img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        body.script-mode .puppet-video-panel .status-card {
+            flex: 0 0 auto;
+        }
+
+        body.script-mode .right-panel {
+            height: 100%;
+            min-height: 0;
+
+            display: grid;
+            grid-template-rows:
+                minmax(0, 1.08fr)
+                minmax(0, 0.92fr);
+
+            gap: 14px;
+        }
+
+        body.script-mode .hand-panel {
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        body.script-mode .hand-panel h2 {
+            flex: 0 0 auto;
+        }
+
+        body.script-mode .hand-panel .camera {
+            flex: 1 1 auto;
+            min-height: 300px;
+            aspect-ratio: auto;
+        }
+
+        body.script-mode .hand-panel .camera img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        body.script-mode .hand-detection-area {
+            flex: 0 0 auto;
+            margin-top: 6px;
+        }
+
+        body.script-mode .action-panel {
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            padding: 12px;
+        }
+
+        body.script-mode .action-panel h2 {
+            flex: 0 0 auto;
+            margin-bottom: 7px;
+        }
+
+        /* 原本下方大型戲單不再出現在畫面上。
+           DOM 保留，讓舊 JS 更新 id 時不會報錯。 */
+        #scriptPanel {
+            display: none !important;
+        }
+
+        /* =====================================================
+           劇本模式：右下本幕資訊
+           ===================================================== */
+
+        .script-scene-view {
+            flex: 1 1 auto;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .script-scene-top {
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding-bottom: 7px;
+            border-bottom: 1px solid #d7c9b5;
+        }
+
+        .script-mini-label {
+            color: #47362a;
+            font-family:
+                "Noto Serif TC",
+                "PMingLiU",
+                "Microsoft JhengHei",
+                serif;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+        }
+
+        .script-mini-number {
+            margin-top: 2px;
+            color: #8a7861;
+            font-size: 10px;
+            letter-spacing: 0.1em;
+        }
+
+        .script-state-chip {
+            padding: 5px 8px;
+            border: 1px solid #c9b797;
+            color: #70533a;
+            background: #f4ead9;
+            font-size: 10px;
+            letter-spacing: 0.08em;
+        }
+
+        .script-state-chip.running {
+            color: #6b3028;
+            border-color: #a96c55;
+            background: #f2dfd6;
+        }
+
+        .script-state-chip.done {
+            color: #426339;
+            border-color: #8ca37f;
+            background: #e7efe1;
+        }
+
+        .compact-scene-progress {
+            flex: 0 0 auto;
+            display: grid;
+            grid-template-columns:
+                repeat(6, minmax(0, 1fr));
+            gap: 4px;
+        }
+
+        .compact-progress-item {
+            min-width: 0;
+            text-align: center;
+            color: #a19380;
+        }
+
+        .compact-progress-dot {
+            width: 7px;
+            height: 7px;
+            margin: 0 auto 3px;
+            border: 1px solid #b9a78c;
+            border-radius: 50%;
+            background: #f8f2e8;
+        }
+
+        .compact-progress-item.done .compact-progress-dot {
+            border-color: #744136;
+            background: #744136;
+        }
+
+        .compact-progress-item.current .compact-progress-dot {
+            border-color: #8b4436;
+            background: #c39250;
+            box-shadow:
+                0 0 0 3px rgba(195, 146, 80, 0.13);
+        }
+
+        .compact-progress-name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 8px;
+            letter-spacing: 0.03em;
+        }
+
+        .compact-progress-item.current {
+            color: #71342b;
+            font-weight: 700;
+        }
+
+        .compact-scene-main {
+            flex: 0 0 auto;
+            padding: 10px 12px 11px;
+            text-align: center;
+            border: 1px solid #d8c8ad;
+            background:
+                linear-gradient(
+                    180deg,
+                    rgba(251, 246, 234, 0.96),
+                    rgba(239, 227, 207, 0.82)
+                );
+        }
+
+        .compact-scene-kicker {
+            color: #9b7d57;
+            font-size: 8px;
+            font-weight: 700;
+            letter-spacing: 0.4em;
+        }
+
+        .compact-scene-title {
+            margin-top: 2px;
+            color: #3d2d22;
+            font-family:
+                "Noto Serif TC",
+                "PMingLiU",
+                "Microsoft JhengHei",
+                serif;
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+        }
+
+        .compact-story-text {
+            margin-top: 5px;
+            color: #705e4c;
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        .compact-cue-grid {
+            flex: 1 1 auto;
+            min-height: 0;
+
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 7px;
+        }
+
+        .compact-cue-card {
+            min-height: 0;
+            padding: 8px 9px;
+            border: 1px solid #ddd0bc;
+            background: rgba(250, 246, 237, 0.72);
+        }
+
+        .compact-cue-label {
+            margin-bottom: 6px;
+            color: #927758;
+            font-size: 8px;
+            font-weight: 700;
+            letter-spacing: 0.17em;
+        }
+
+        .compact-cue-row {
+            display: grid;
+            grid-template-columns: 42px 1fr;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .compact-gesture-icon {
+            font-size: 30px;
+            text-align: center;
+            filter: saturate(0.7);
+        }
+
+        .compact-shadow-mark {
+            width: 34px;
+            height: 34px;
+            margin: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            border: 1px solid #986948;
+            border-radius: 50%;
+
+            color: #754435;
+            background: #ead8b7;
+
+            font-family:
+                "Noto Serif TC",
+                "PMingLiU",
+                serif;
+            font-size: 15px;
+        }
+
+        .compact-cue-title {
+            color: #3f3025;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .compact-cue-text {
+            margin-top: 3px;
+            color: #7e6c58;
+            font-size: 9px;
+            line-height: 1.4;
+        }
+
+        .compact-scene-status {
+            flex: 0 0 auto;
+            min-height: 32px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            padding: 6px 8px;
+
+            color: #74624f;
+            border-top: 1px solid #d7c9b5;
+
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+        }
+
+        .compact-status-dot {
+            width: 7px;
+            height: 7px;
+            margin-right: 6px;
+
+            border-radius: 50%;
+            background: #9b8a75;
+        }
+
+        .compact-scene-status.correct {
+            color: #42633a;
+        }
+
+        .compact-scene-status.correct .compact-status-dot {
+            background: #5f8c50;
+        }
+
+        .compact-scene-status.warning {
+            color: #8b4e30;
+        }
+
+        .compact-scene-status.warning .compact-status-dot {
+            background: #b06c43;
+        }
+
+        .compact-scene-status.finished {
+            color: #42633a;
+        }
+
+        .compact-scene-status.finished .compact-status-dot {
+            background: #5f8c50;
+        }
+
+        /* =====================================================
+           舞台上的短暫幕名
+           ===================================================== */
+
+        .stage-scene-overlay {
+            position: absolute;
+            left: 24px;
+            right: 24px;
+            bottom: 24px;
+            z-index: 4;
+
+            padding: 11px 16px 12px;
+
+            text-align: center;
+
+            color: #f1dfb8;
+            background:
+                linear-gradient(
+                    90deg,
+                    transparent,
+                    rgba(24, 13, 9, 0.82) 20%,
+                    rgba(24, 13, 9, 0.88) 50%,
+                    rgba(24, 13, 9, 0.82) 80%,
+                    transparent
+                );
+
+            opacity: 0;
+            transform: translateY(8px);
+
+            pointer-events: none;
+
+            transition:
+                opacity 0.45s ease,
+                transform 0.45s ease;
+        }
+
+        .stage-scene-overlay.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .stage-scene-number {
+            color: #cbaa6e;
+            font-size: 9px;
+            letter-spacing: 0.25em;
+        }
+
+        .stage-scene-title {
+            margin-top: 2px;
+
+            font-family:
+                "Noto Serif TC",
+                "PMingLiU",
+                "Microsoft JhengHei",
+                serif;
+
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: 0.18em;
+        }
+
+        @media (max-width: 1200px) {
+            body.script-mode .main {
+                grid-template-columns:
+                    minmax(0, 1.08fr)
+                    minmax(390px, 0.92fr);
+            }
+
+            body.script-mode .hand-panel .camera {
+                min-height: 280px;
+            }
+        }
+
+        @media (max-width: 900px) {
+            body.script-mode .main {
+                height: auto;
+                grid-template-columns: 1fr;
+            }
+
+            body.script-mode .puppet-video-panel {
+                height: auto;
+            }
+
+            body.script-mode .puppet-camera {
+                flex: none !important;
+                aspect-ratio: 16 / 9 !important;
+            }
+
+            body.script-mode .right-panel {
+                height: auto;
+                display: flex;
+                flex-direction: column;
+            }
+
+            body.script-mode .hand-panel .camera {
+                flex: none;
+                min-height: 0;
+                aspect-ratio: 16 / 9;
+            }
+        }
+
+        @media (max-width: 560px) {
+            .compact-cue-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stage-scene-overlay {
+                left: 8px;
+                right: 8px;
+                bottom: 12px;
+            }
+        }
+
+    
+        /* =========================================================
+           V8：劇本模式空間再整理
+           目標：
+           1. 劇本名稱直接成為右下標題
+           2. 「演出中」與劇本名稱同行
+           3. 把更多高度讓給右上的目前偵測
+           4. 最下方等待提示縮成單行細狀態列
+           ========================================================= */
+
+        .action-panel-heading-row {
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+
+        .action-panel-heading-row h2 {
+            margin: 0 !important;
+        }
+
+        .header-script-state {
+            flex: 0 0 auto;
+            padding: 3px 7px;
+            border: 1px solid #c9b797;
+            color: #70533a;
+            background: #f4ead9;
+            font-size: 9px;
+            line-height: 1.2;
+            letter-spacing: 0.08em;
+        }
+
+        .header-script-state.running {
+            color: #6b3028;
+            border-color: #a96c55;
+            background: #f2dfd6;
+        }
+
+        .header-script-state.done {
+            color: #426339;
+            border-color: #8ca37f;
+            background: #e7efe1;
+        }
+
+        /* 劇本模式：右上再多拿一點高度 */
+        body.script-mode .right-panel {
+            grid-template-rows:
+                minmax(0, 1.24fr)
+                minmax(0, 0.76fr);
+        }
+
+        /* 手部畫面本身至少保有足夠高度 */
+        body.script-mode .hand-panel .camera {
+            min-height: 320px;
+        }
+
+        /* 左右手目前偵測區再精簡一點 */
+        body.script-mode .hand-detection-title {
+            padding-top: 4px;
+            padding-bottom: 3px;
+        }
+
+        body.script-mode .hand-detection-card {
+            padding-top: 6px;
+            padding-bottom: 6px;
+        }
+
+        /* 右下劇本資訊整體變緊湊 */
+        body.script-mode .action-panel {
+            padding-top: 10px;
+            padding-bottom: 8px;
+        }
+
+        body.script-mode .script-scene-view {
+            gap: 5px;
+        }
+
+        body.script-mode .compact-only-row {
+            min-height: 0;
+            padding: 0 0 4px;
+            border-bottom: 0;
+        }
+
+        body.script-mode .script-mini-number {
+            margin-top: 0;
+            font-size: 9px;
+            line-height: 1.2;
+        }
+
+        body.script-mode .compact-scene-progress {
+            gap: 3px;
+        }
+
+        body.script-mode .compact-progress-dot {
+            width: 6px;
+            height: 6px;
+            margin-bottom: 2px;
+        }
+
+        body.script-mode .compact-progress-name {
+            font-size: 7px;
+        }
+
+        body.script-mode .compact-scene-main {
+            padding: 7px 10px 8px;
+        }
+
+        body.script-mode .compact-scene-kicker {
+            font-size: 7px;
+        }
+
+        body.script-mode .compact-scene-title {
+            margin-top: 1px;
+            font-size: 19px;
+            line-height: 1.15;
+        }
+
+        body.script-mode .compact-story-text {
+            margin-top: 3px;
+            font-size: 10px;
+            line-height: 1.35;
+        }
+
+        body.script-mode .compact-cue-grid {
+            gap: 5px;
+        }
+
+        body.script-mode .compact-cue-card {
+            padding: 6px 7px;
+        }
+
+        body.script-mode .compact-cue-label {
+            margin-bottom: 4px;
+            font-size: 7px;
+        }
+
+        body.script-mode .compact-cue-row {
+            grid-template-columns: 36px 1fr;
+            gap: 6px;
+        }
+
+        body.script-mode .compact-gesture-icon {
+            font-size: 25px;
+        }
+
+        body.script-mode .compact-shadow-mark {
+            width: 30px;
+            height: 30px;
+            font-size: 13px;
+        }
+
+        body.script-mode .compact-cue-title {
+            font-size: 12px;
+        }
+
+        body.script-mode .compact-cue-text {
+            margin-top: 2px;
+            font-size: 8px;
+            line-height: 1.3;
+        }
+
+        /* 最下面的「等待右手比出...」縮成細狀態列 */
+        body.script-mode .compact-scene-status {
+            min-height: 20px;
+            padding: 2px 5px;
+            font-size: 8px;
+            line-height: 1.15;
+            border-top: 1px solid #ddd1bf;
+        }
+
+        body.script-mode .compact-status-dot {
+            width: 5px;
+            height: 5px;
+            margin-right: 5px;
+        }
+
+        @media (max-width: 1200px) {
+            body.script-mode .right-panel {
+                grid-template-rows:
+                    minmax(0, 1.18fr)
+                    minmax(0, 0.82fr);
+            }
+
+            body.script-mode .hand-panel .camera {
+                min-height: 295px;
+            }
+        }
+
+    
+        #compactScriptState {
+            display: none !important;
+        }
+
+    
+        /* =========================================================
+           V9：移除「目前偵測」區塊，並縮小手部辨識 / 劇本區間距
+           ========================================================= */
+
+        /* 直接隱藏「目前偵測」整塊（右手 / 左手卡片） */
+        .hand-detection-area {
+            display: none !important;
+        }
+
+        /* 讓手部辨識畫面直接吃滿剩餘空間 */
+        .hand-panel {
+            gap: 0 !important;
+        }
+
+        .hand-panel .camera {
+            margin-bottom: 0 !important;
+        }
+
+        body.free-mode .hand-panel .camera,
+        body.script-mode .hand-panel .camera {
+            flex: 1 1 auto;
+        }
+
+        /* 右側上下兩塊距離更靠近 */
+        body.free-mode .right-panel,
+        body.script-mode .right-panel {
+            gap: 8px !important;
+        }
+
+        /* 劇本模式再多給手部辨識一點點高度 */
+        body.script-mode .right-panel {
+            grid-template-rows:
+                minmax(0, 1.3fr)
+                minmax(0, 0.7fr);
+        }
+
+        /* 右下劇本區上方再收緊一點 */
+        body.script-mode .action-panel {
+            padding-top: 8px;
+        }
+
+        .action-panel-heading-row {
+            margin-bottom: 4px;
+        }
+
+        /* 中等寬度仍維持相同風格 */
+        @media (max-width: 1200px) {
+            body.script-mode .right-panel {
+                grid-template-rows:
+                    minmax(0, 1.24fr)
+                    minmax(0, 0.76fr);
+            }
+        }
+
+    
+        /* =========================================================
+           V10：手部辨識維持正常 16:9，不再被版面壓縮
+           ========================================================= */
+
+        /* 自由 / 劇本都取消固定總高度，
+           讓右側內容自然決定整列高度，必要時整頁往下延伸。 */
+        body.free-mode .main,
+        body.script-mode .main {
+            height: auto !important;
+            min-height: 0 !important;
+            align-items: stretch !important;
+        }
+
+        /* 右欄改回自然高度，不再用 grid row 強迫分配比例 */
+        body.free-mode .right-panel,
+        body.script-mode .right-panel {
+            height: auto !important;
+            min-height: 0 !important;
+
+            display: flex !important;
+            flex-direction: column !important;
+
+            gap: 8px !important;
+        }
+
+        /* 手部辨識面板使用自然高度 */
+        body.free-mode .hand-panel,
+        body.script-mode .hand-panel {
+            flex: 0 0 auto !important;
+            height: auto !important;
+            min-height: 0 !important;
+            overflow: visible !important;
+        }
+
+        /* 關鍵修正：
+           手部攝影機永遠維持 16:9，
+           不再被 flex / grid 拉高或壓扁。 */
+        body.free-mode .hand-panel .camera,
+        body.script-mode .hand-panel .camera {
+            flex: 0 0 auto !important;
+
+            width: 100% !important;
+            height: auto !important;
+            min-height: 0 !important;
+
+            aspect-ratio: 16 / 9 !important;
+
+            margin: 0 !important;
+        }
+
+        body.free-mode .hand-panel .camera img,
+        body.script-mode .hand-panel .camera img {
+            width: 100% !important;
+            height: 100% !important;
+
+            object-fit: cover !important;
+            display: block !important;
+        }
+
+        /* 右下內容自然接在手部辨識下面，
+           不再為了塞進固定高度而去壓縮手部畫面。 */
+        body.free-mode .action-panel,
+        body.script-mode .action-panel {
+            flex: 0 0 auto !important;
+            height: auto !important;
+            min-height: 0 !important;
+            overflow: visible !important;
+        }
+
+        /* 左側仍然跟整個右欄總高度對齊 */
+        body.free-mode .puppet-video-panel,
+        body.script-mode .puppet-video-panel {
+            height: auto !important;
+            min-height: 0 !important;
+            align-self: stretch !important;
+        }
+
+        body.free-mode .puppet-camera,
+        body.script-mode .puppet-camera {
+            flex: 1 1 auto !important;
+            min-height: 420px !important;
+        }
+
+        /* 小螢幕維持自然堆疊 */
+        @media (max-width: 900px) {
+            body.free-mode .puppet-camera,
+            body.script-mode .puppet-camera {
+                min-height: 0 !important;
+                aspect-ratio: 16 / 9 !important;
+            }
+
+            body.free-mode .hand-panel .camera,
+            body.script-mode .hand-panel .camera {
+                aspect-ratio: 16 / 9 !important;
+            }
+        }
+
+    
+        /* =========================================================
+           V11：固定舞台 / 手部辨識尺寸，放大劇本區並與舞台底部對齊
+           ========================================================= */
+
+        body.script-mode .main {
+            height: 780px !important;
+            min-height: 780px !important;
+            align-items: stretch !important;
+
+            grid-template-columns:
+                minmax(0, 1.2fr)
+                minmax(430px, 0.8fr) !important;
+
+            gap: 14px !important;
+        }
+
+        body.script-mode .puppet-video-panel {
+            height: 780px !important;
+            min-height: 780px !important;
+            max-height: 780px !important;
+
+            display: flex !important;
+            flex-direction: column !important;
+            align-self: stretch !important;
+        }
+
+        body.script-mode .puppet-video-panel h2 {
+            flex: 0 0 auto !important;
+        }
+
+        body.script-mode .puppet-camera {
+            flex: 1 1 auto !important;
+            height: auto !important;
+            min-height: 0 !important;
+            aspect-ratio: auto !important;
+        }
+
+        body.script-mode .puppet-camera img {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important;
+        }
+
+        body.script-mode .puppet-video-panel .status-card {
+            flex: 0 0 auto !important;
+        }
+
+        body.script-mode .right-panel {
+            height: 780px !important;
+            min-height: 780px !important;
+            max-height: 780px !important;
+
+            display: grid !important;
+            grid-template-rows:
+                400px
+                minmax(0, 1fr) !important;
+
+            gap: 8px !important;
+        }
+
+        body.script-mode .hand-panel {
+            height: 400px !important;
+            min-height: 400px !important;
+            max-height: 400px !important;
+
+            display: flex !important;
+            flex-direction: column !important;
+            overflow: hidden !important;
+        }
+
+        body.script-mode .hand-panel h2 {
+            flex: 0 0 auto !important;
+            margin-bottom: 6px !important;
+        }
+
+        body.script-mode .hand-panel .camera {
+            flex: 1 1 auto !important;
+
+            width: 100% !important;
+            height: auto !important;
+            min-height: 0 !important;
+
+            aspect-ratio: 16 / 9 !important;
+            background: #111 !important;
+        }
+
+        body.script-mode .hand-panel .camera img {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: contain !important;
+            background: #111 !important;
+        }
+
+        body.script-mode .action-panel {
+            height: 100% !important;
+            min-height: 0 !important;
+
+            display: flex !important;
+            flex-direction: column !important;
+
+            overflow: hidden !important;
+
+            padding: 12px 13px 10px !important;
+        }
+
+        body.script-mode .action-panel-heading-row {
+            flex: 0 0 auto !important;
+            margin-bottom: 7px !important;
+        }
+
+        body.script-mode .action-panel-heading-row h2 {
+            font-size: 20px !important;
+        }
+
+        body.script-mode .header-script-state {
+            padding: 4px 8px !important;
+            font-size: 10px !important;
+        }
+
+        body.script-mode .script-scene-view {
+            flex: 1 1 auto !important;
+            min-height: 0 !important;
+
+            display: flex !important;
+            flex-direction: column !important;
+
+            gap: 7px !important;
+        }
+
+        body.script-mode .compact-only-row {
+            flex: 0 0 auto !important;
+            padding-bottom: 4px !important;
+        }
+
+        body.script-mode .script-mini-number {
+            font-size: 10px !important;
+        }
+
+        body.script-mode .compact-scene-progress {
+            flex: 0 0 auto !important;
+            gap: 5px !important;
+        }
+
+        body.script-mode .compact-progress-dot {
+            width: 7px !important;
+            height: 7px !important;
+            margin-bottom: 3px !important;
+        }
+
+        body.script-mode .compact-progress-name {
+            font-size: 8px !important;
+        }
+
+        body.script-mode .compact-scene-main {
+            flex: 0 0 auto !important;
+            padding: 13px 14px 14px !important;
+        }
+
+        body.script-mode .compact-scene-kicker {
+            font-size: 8px !important;
+        }
+
+        body.script-mode .compact-scene-title {
+            margin-top: 2px !important;
+            font-size: 24px !important;
+            line-height: 1.2 !important;
+        }
+
+        body.script-mode .compact-story-text {
+            margin-top: 6px !important;
+            font-size: 11px !important;
+            line-height: 1.5 !important;
+        }
+
+        body.script-mode .compact-cue-grid {
+            flex: 1 1 auto !important;
+            min-height: 0 !important;
+            gap: 8px !important;
+        }
+
+        body.script-mode .compact-cue-card {
+            height: 100% !important;
+            min-height: 0 !important;
+
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: center !important;
+
+            padding: 10px 11px !important;
+        }
+
+        body.script-mode .compact-cue-label {
+            margin-bottom: 7px !important;
+            font-size: 8px !important;
+        }
+
+        body.script-mode .compact-cue-row {
+            grid-template-columns:
+                45px
+                minmax(0, 1fr) !important;
+
+            gap: 8px !important;
+        }
+
+        body.script-mode .compact-gesture-icon {
+            font-size: 31px !important;
+        }
+
+        body.script-mode .compact-shadow-mark {
+            width: 38px !important;
+            height: 38px !important;
+            font-size: 15px !important;
+        }
+
+        body.script-mode .compact-cue-title {
+            font-size: 14px !important;
+        }
+
+        body.script-mode .compact-cue-text {
+            margin-top: 4px !important;
+            font-size: 9px !important;
+            line-height: 1.4 !important;
+        }
+
+        body.script-mode .compact-scene-status {
+            flex: 0 0 24px !important;
+            min-height: 24px !important;
+            height: 24px !important;
+            padding: 3px 6px !important;
+            font-size: 8px !important;
+        }
+
+        /* 自由操偶維持 V10 */
+        body.free-mode .main {
+            height: auto !important;
+            min-height: 0 !important;
+        }
+
+        @media (max-width: 1200px) {
+            body.script-mode .main,
+            body.script-mode .puppet-video-panel,
+            body.script-mode .right-panel {
+                height: 720px !important;
+                min-height: 720px !important;
+                max-height: 720px !important;
+            }
+
+            body.script-mode .right-panel {
+                grid-template-rows:
+                    365px
+                    minmax(0, 1fr) !important;
+            }
+
+            body.script-mode .hand-panel {
+                height: 365px !important;
+                min-height: 365px !important;
+                max-height: 365px !important;
+            }
+        }
+
+        @media (max-width: 900px) {
+            body.script-mode .main {
+                height: auto !important;
+                min-height: 0 !important;
+                grid-template-columns: 1fr !important;
+            }
+
+            body.script-mode .puppet-video-panel,
+            body.script-mode .right-panel,
+            body.script-mode .hand-panel {
+                height: auto !important;
+                min-height: 0 !important;
+                max-height: none !important;
+            }
+
+            body.script-mode .right-panel {
+                display: flex !important;
+                flex-direction: column !important;
+            }
+
+            body.script-mode .puppet-camera,
+            body.script-mode .hand-panel .camera {
+                aspect-ratio: 16 / 9 !important;
+            }
+
+            body.script-mode .hand-panel .camera img {
+                object-fit: cover !important;
+            }
+        }
+
+    
+        /* =========================================================
+           V12：劇本標題 / 幕次同行，等待劇本區放大
+           ========================================================= */
+
+        body.script-mode .action-panel-heading-row {
+            align-items: center !important;
+            margin-bottom: 7px !important;
+        }
+
+        .script-heading-inline {
+            min-width: 0;
+            display: flex;
+            align-items: baseline;
+            gap: 11px;
+        }
+
+        .script-heading-inline h2 {
+            flex: 0 1 auto;
+            white-space: nowrap;
+        }
+
+        .script-heading-scene-number {
+            flex: 0 0 auto;
+            color: #8a7861;
+            font-size: 10px;
+            font-weight: 500;
+            letter-spacing: 0.08em;
+            white-space: nowrap;
+        }
+
+        /* 原本幕次獨佔一行，現在已移除，所以劇本內容直接往上接 */
+        body.script-mode .compact-only-row {
+            display: none !important;
+        }
+
+        /*
+           把原本容易落在「操偶提示 / 戲偶演出」裡的多餘高度，
+           改留給中央的「等待劇本 / 本幕」區塊。
+        */
+        body.script-mode .compact-scene-main {
+            flex: 1 1 auto !important;
+            min-height: 135px !important;
+
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: center !important;
+
+            padding: 14px 16px !important;
+        }
+
+        body.script-mode .compact-scene-title {
+            font-size: 25px !important;
+        }
+
+        body.script-mode .compact-story-text {
+            font-size: 11px !important;
+            line-height: 1.55 !important;
+        }
+
+        /* 下方兩張提示卡固定成較緊湊的高度，不再吃掉所有剩餘空間 */
+        body.script-mode .compact-cue-grid {
+            flex: 0 0 145px !important;
+            min-height: 145px !important;
+            max-height: 145px !important;
+        }
+
+        body.script-mode .compact-cue-card {
+            height: 145px !important;
+            min-height: 145px !important;
+            max-height: 145px !important;
+        }
+
+        /* 最底下提示列稍微放大字，但保持薄 */
+        body.script-mode .compact-scene-status {
+            flex: 0 0 30px !important;
+            height: 30px !important;
+            min-height: 30px !important;
+
+            padding: 4px 7px !important;
+
+            font-size: 10px !important;
+            font-weight: 600 !important;
+            line-height: 1.2 !important;
+        }
+
+        body.script-mode .compact-status-dot {
+            width: 6px !important;
+            height: 6px !important;
+            margin-right: 6px !important;
+        }
+
+        @media (max-width: 1200px) {
+            body.script-mode .compact-scene-main {
+                min-height: 115px !important;
+            }
+
+            body.script-mode .compact-cue-grid {
+                flex-basis: 132px !important;
+                min-height: 132px !important;
+                max-height: 132px !important;
+            }
+
+            body.script-mode .compact-cue-card {
+                height: 132px !important;
+                min-height: 132px !important;
+                max-height: 132px !important;
+            }
+        }
+
+    
+        /* =========================================================
+           V13：演出完成版面重新分配
+           ========================================================= */
+
+        body.script-mode .script-scene-view.finished-view
+        .compact-scene-main {
+            flex: 0 0 105px !important;
+            min-height: 105px !important;
+            max-height: 105px !important;
+            padding: 9px 14px !important;
+        }
+
+        body.script-mode .script-scene-view.finished-view
+        .compact-scene-kicker {
+            font-size: 8px !important;
+        }
+
+        body.script-mode .script-scene-view.finished-view
+        .compact-scene-title {
+            margin-top: 1px !important;
+            font-size: 23px !important;
+            line-height: 1.15 !important;
+        }
+
+        body.script-mode .script-scene-view.finished-view
+        .compact-story-text {
+            margin-top: 3px !important;
+            font-size: 10px !important;
+            line-height: 1.35 !important;
+        }
+
+        body.script-mode .script-scene-view.finished-view
+        .compact-cue-grid {
+            flex: 1 1 auto !important;
+            min-height: 190px !important;
+            max-height: none !important;
+            gap: 9px !important;
+        }
+
+        body.script-mode .script-scene-view.finished-view
+        .compact-cue-card {
+            height: 100% !important;
+            min-height: 190px !important;
+            max-height: none !important;
+            padding: 15px 16px !important;
+            justify-content: center !important;
+        }
+
+        body.script-mode .script-scene-view.finished-view
+        .compact-cue-label {
+            margin-bottom: 10px !important;
+            font-size: 9px !important;
+            letter-spacing: 0.18em !important;
+        }
+
+        body.script-mode .script-scene-view.finished-view
+        .compact-cue-row {
+            grid-template-columns:
+                58px
+                minmax(0, 1fr) !important;
+            gap: 12px !important;
+        }
+
+        body.script-mode .script-scene-view.finished-view
+        .compact-gesture-icon {
+            font-size: 43px !important;
+        }
+
+        body.script-mode .script-scene-view.finished-view
+        .compact-shadow-mark {
+            width: 48px !important;
+            height: 48px !important;
+            font-size: 19px !important;
+        }
+
+        body.script-mode .script-scene-view.finished-view
+        .compact-cue-title {
+            font-size: 17px !important;
+            line-height: 1.25 !important;
+        }
+
+        body.script-mode .script-scene-view.finished-view
+        .compact-cue-text {
+            margin-top: 6px !important;
+            font-size: 11px !important;
+            line-height: 1.45 !important;
+        }
+
+        body.script-mode .script-scene-view.finished-view
+        .compact-scene-status {
+            flex: 0 0 27px !important;
+            height: 27px !important;
+            min-height: 27px !important;
+            font-size: 9px !important;
+        }
+
+        @media (max-width: 1200px) {
+            body.script-mode .script-scene-view.finished-view
+            .compact-scene-main {
+                flex-basis: 92px !important;
+                min-height: 92px !important;
+                max-height: 92px !important;
+            }
+
+            body.script-mode .script-scene-view.finished-view
+            .compact-cue-grid {
+                min-height: 165px !important;
+            }
+
+            body.script-mode .script-scene-view.finished-view
+            .compact-cue-card {
+                min-height: 165px !important;
+            }
+
+            body.script-mode .script-scene-view.finished-view
+            .compact-cue-title {
+                font-size: 15px !important;
+            }
+
+            body.script-mode .script-scene-view.finished-view
+            .compact-cue-text {
+                font-size: 10px !important;
+            }
+        }
+
+    
+        /* =========================================================
+           V18：移除 15 幕進度小圓點
+           ========================================================= */
+
+        /*
+           幕次已經顯示在劇本名稱旁邊（例如：第 1 / 15 幕），
+           所以上方 15 個小圓點與幕次標籤不再顯示，
+           避免畫面過於零碎。
+        */
+        body.script-mode .compact-scene-progress {
+            display: none !important;
+        }
+
+        /*
+           移除進度列後，把空間還給本幕內容與下方提示區。
+        */
+        body.script-mode .script-scene-view {
+            gap: 8px !important;
+        }
+
+        body.script-mode .compact-scene-main {
+            margin-top: 0 !important;
+        }
+
+    </style>
+</head>
+
+<body class="intro-lock">
+
+    <!-- =========================================================
+         開場動畫
+         ========================================================= -->
+
+    <div id="introOverlay" class="intro-overlay">
+        <div class="stage-glow"></div>
+        <div class="stage-top"></div>
+        <div class="stage-frame"></div>
+
+        <div class="curtain curtain-left"></div>
+        <div class="curtain curtain-right"></div>
+
+        <div id="introCenter" class="intro-center">
+            <div class="title-plaque">
+                <div class="intro-kicker">傳統 × 科技 × 互動</div>
+                <h1 class="intro-title">掌中智戲</h1>
+                <p class="intro-subtitle">AI 手勢互動皮影戲</p>
+
+                <div class="intro-divider"></div>
+
+                <div id="introStatus" class="intro-status">
+                    <span class="intro-dot"></span>
+                    <span id="introStatusText">等待舞台準備</span>
+                </div>
+
+                <div class="intro-actions">
+                    <button id="introEnterButton" class="intro-enter">
+                        點擊準備開幕
+                    </button>
+
+                    <button id="introSkipButton" class="intro-skip">
+                        略過開場
+                    </button>
+                </div>
+
+                <div class="intro-note">
+                    手機戲偶畫面連線後，舞台將自動開幕
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         音樂
+         intro.mp3 = 開場布幕音樂
+         menu.mp3   = 開幕後、選模式 / 自由操偶背景音樂
+         script.mp3 = 劇本演出背景音樂
+
+         Raspberry Pi 檔案位置：
+         /home/seaturtle/gesture_project/static/audio/intro.mp3
+         /home/seaturtle/gesture_project/static/audio/menu.mp3
+         /home/seaturtle/gesture_project/static/audio/script.mp3
+         ========================================================= -->
+
+    <audio
+        id="introMusic"
+        src="/static/audio/intro.mp3"
+        preload="auto"
+        loop
+    ></audio>
+
+    <audio
+        id="menuMusic"
+        src="/static/audio/menu.mp3"
+        preload="auto"
+        loop
+    ></audio>
+
+    <audio
+        id="scriptMusic"
+        src="/static/audio/script.mp3"
+        preload="auto"
+        loop
+    ></audio>
+
+    <!-- =========================================================
+         主介面
+         ========================================================= -->
+
+    <div id="siteShell" class="site-shell">
+
+    <header>
+        <h1>掌中智戲</h1>
+        <p>AI 手勢互動皮影戲</p>
+
+        <div class="header-tools">
+            <button id="musicToggleButton" class="header-tool" type="button">
+                音樂：關
+            </button>
+
+            <button id="replayIntroButton" class="header-tool" type="button">
+                重播開場
+            </button>
+        </div>
+    </header>
+
+    <div class="container">
+
+        <div class="mode-selector">
+            <button
+                id="scriptModeButton"
+                class="mode-button active"
+            >
+                劇本演出
+            </button>
+
+            <button
+                id="freeModeButton"
+                class="mode-button"
+            >
+                即興操偶
+            </button>
+        </div>
+
+        <div
+            id="scriptToolbar"
+            class="script-toolbar"
+        >
+            <button
+                id="loadScriptButton"
+                class="primary"
+            >
+                載入《文士舞劍》
+            </button>
+
+            <button
+                id="startScriptButton"
+                class="secondary"
+            >
+                開始演出
+            </button>
+        </div>
+
+        <div class="main">
+
+            <section class="panel puppet-video-panel">
+                <h2>實體戲偶舞台</h2>
+
+                <div class="puppet-camera">
+                    <img
+                        src="/puppet_video_feed"
+                        alt="實體戲偶即時影像"
+                    >
+
+                    <div
+                        id="stageSceneOverlay"
+                        class="stage-scene-overlay"
+                    >
+                        <div
+                            id="stageSceneNumber"
+                            class="stage-scene-number"
+                        >
+                            第一幕
+                        </div>
+
+                        <div
+                            id="stageSceneTitle"
+                            class="stage-scene-title"
+                        >
+                            登場
+                        </div>
+                    </div>
+                </div>
+
+                <div
+                    class="status-card"
+                    style="text-align: center;"
+                >
+                    <div class="status-title">
+                        實體系統狀態
+                    </div>
+
+                    <div
+                        id="puppetConnectionStatus"
+                        class="status-value"
+                        style="color: #666;"
+                    >
+                        ● 尚未連接
+                    </div>
+                </div>
+            </section>
+
+            <div class="right-panel">
+
+                <section class="panel hand-panel">
+                    <h2 style="font-size: 18px;">
+                        即時手勢辨識
+                    </h2>
+
+                    <div class="camera">
+                        <img
+                            src="/video_feed"
+                            alt="手部攝影機"
+                        >
+                    </div>
+
+                    <div class="hand-detection-area">
+                        <div class="hand-detection-title">
+                            目前偵測
+                        </div>
+
+                        <div class="hand-detection-grid">
+
+                            <div
+                                id="rightHandCard"
+                                class="hand-detection-card right-hand"
+                            >
+                                <div class="hand-detection-label">
+                                    <span class="hand-detection-name">
+                                        右手
+                                    </span>
+
+                                    <span class="hand-detection-character">
+                                        P1
+                                    </span>
+                                </div>
+
+                                <div
+                                    id="rightHandValue"
+                                    class="hand-detection-value empty"
+                                >
+                                    尚未偵測
+                                </div>
+                            </div>
+
+                            <div
+                                id="leftHandCard"
+                                class="hand-detection-card left-hand"
+                            >
+                                <div class="hand-detection-label">
+                                    <span class="hand-detection-name">
+                                        左手
+                                    </span>
+
+                                    <span class="hand-detection-character">
+                                        P2
+                                    </span>
+                                </div>
+
+                                <div
+                                    id="leftHandValue"
+                                    class="hand-detection-value empty"
+                                >
+                                    尚未偵測
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </section>
+
+                <section class="panel action-panel">
+                    <div class="action-panel-heading-row">
+                        <div class="script-heading-inline">
+                            <h2
+                                id="actionPanelTitle"
+                                style="font-size: 18px;"
+                            >
+                                手勢 → 戲偶動作
+                            </h2>
+
+                            <div
+                                id="compactSceneNumber"
+                                class="script-heading-scene-number hidden"
+                            >
+                                第 0 / 0 幕
+                            </div>
+                        </div>
+
+                        <div
+                            id="headerScriptState"
+                            class="header-script-state hidden"
+                        >
+                            尚未載入
+                        </div>
+                    </div>
+
+                    <!-- 自由操偶 -->
+                    <div id="freeActionView">
+                        <div
+                            id="actionList"
+                            class="gesture-action-list"
+                        ></div>
+                    </div>
+
+                    <!-- 劇本演出 -->
+                    <div
+                        id="scriptSceneView"
+                        class="script-scene-view hidden"
+                    >
+                        <!-- 幕次已搬到劇本名稱旁邊 -->
+
+                        <!-- 舊 id 保留給既有 JS，相容但不顯示 -->
+                        <div
+                            id="compactScriptState"
+                            class="script-state-chip hidden"
+                        >
+                            尚未載入
+                        </div>
+
+                        <div
+                            id="compactSceneProgress"
+                            class="compact-scene-progress"
+                        ></div>
+
+                        <div class="compact-scene-main">
+                            <div class="compact-scene-kicker">
+                                本幕
+                            </div>
+
+                            <div
+                                id="compactSceneTitle"
+                                class="compact-scene-title"
+                            >
+                                等待開始
+                            </div>
+
+                            <div
+                                id="compactStoryText"
+                                class="compact-story-text"
+                            >
+                                請先載入《文士舞劍》。
+                            </div>
+                        </div>
+
+                        <div class="compact-cue-grid">
+                            <div class="compact-cue-card">
+                                <div class="compact-cue-label">
+                                    操偶提示
+                                </div>
+
+                                <div class="compact-cue-row">
+                                    <div
+                                        id="compactGestureIcon"
+                                        class="compact-gesture-icon"
+                                    >
+                                        —
+                                    </div>
+
+                                    <div>
+                                        <div
+                                            id="compactGestureName"
+                                            class="compact-cue-title"
+                                        >
+                                            尚未指定
+                                        </div>
+
+                                        <div
+                                            id="compactOperatorText"
+                                            class="compact-cue-text"
+                                        >
+                                            請等待劇本開始。
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="compact-cue-card">
+                                <div class="compact-cue-label">
+                                    戲偶演出
+                                </div>
+
+                                <div class="compact-cue-row">
+                                    <div class="compact-shadow-mark">
+                                        影
+                                    </div>
+
+                                    <div>
+                                        <div
+                                            id="compactPuppetAction"
+                                            class="compact-cue-title"
+                                        >
+                                            —
+                                        </div>
+
+                                        <div
+                                            id="compactPuppetText"
+                                            class="compact-cue-text"
+                                        >
+                                            —
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div
+                            id="compactSceneStatus"
+                            class="compact-scene-status"
+                        >
+                            <span class="compact-status-dot"></span>
+                            <span id="compactSceneStatusText">
+                                請先載入劇本
+                            </span>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </div>
+
+        <section
+            id="scriptPanel"
+            class="panel script-playbill"
+            style="margin-top: 10px;"
+        >
+            <div class="playbill-ornament playbill-ornament-left"></div>
+            <div class="playbill-ornament playbill-ornament-right"></div>
+
+            <div class="playbill-heading">
+                <div class="playbill-eyebrow">
+                    今 日 戲 單
+                </div>
+
+                <div class="script-header">
+                    <div>
+                        <div
+                            id="scriptName"
+                            class="script-name"
+                        >
+                            《文士舞劍》
+                        </div>
+
+                        <div
+                            id="scriptDescription"
+                            class="script-description"
+                        >
+                            請先載入劇本。
+                        </div>
+                    </div>
+
+                    <div
+                        id="sceneNumber"
+                        class="scene-number"
+                    >
+                        第 0 / 0 幕
+                    </div>
+                </div>
+            </div>
+
+            <div class="playbill-rule">
+                <span></span>
+                <b>幕 次</b>
+                <span></span>
+            </div>
+
+            <div
+                id="progressDots"
+                class="progress-dots scene-track"
+            ></div>
+
+            <div class="current-scene-stage">
+                <div class="scene-kicker">
+                    本 幕
+                </div>
+
+                <div
+                    id="sceneTitle"
+                    class="scene-title"
+                >
+                    等待開始
+                </div>
+
+                <div class="scene-divider"></div>
+
+                <div class="scene-story">
+                    <div class="box-label">
+                        劇情
+                    </div>
+
+                    <div
+                        id="storyText"
+                        class="story-text"
+                    >
+                        請先載入《文士舞劍》。
+                    </div>
+                </div>
+            </div>
+
+            <div class="performance-cues">
+                <div class="cue-panel cue-operator">
+                    <div class="cue-heading">
+                        操偶提示
+                    </div>
+
+                    <div class="cue-body">
+                        <div
+                            id="gestureIcon"
+                            class="gesture-icon"
+                        >
+                            ❔
+                        </div>
+
+                        <div class="cue-copy">
+                            <div
+                                id="gestureName"
+                                class="gesture-name"
+                            >
+                                尚未指定
+                            </div>
+
+                            <div
+                                id="operatorText"
+                                class="operator-text"
+                            >
+                                請等待劇本開始。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cue-panel cue-puppet">
+                    <div class="cue-heading">
+                        戲偶演出
+                    </div>
+
+                    <div class="cue-body cue-body-puppet">
+                        <div class="puppet-symbol">
+                            影
+                        </div>
+
+                        <div class="cue-copy">
+                            <div
+                                id="puppetAction"
+                                class="puppet-action"
+                            >
+                                -
+                            </div>
+
+                            <div
+                                id="puppetText"
+                                class="puppet-text"
+                            >
+                                -
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    </div><!-- /site-shell -->
+
+    <script>
+        // =========================================================
+        // 開場動畫狀態
+        // =========================================================
+
+        const introOverlay =
+            document.getElementById("introOverlay");
+
+        const introStatus =
+            document.getElementById("introStatus");
+
+        const introStatusText =
+            document.getElementById("introStatusText");
+
+        const introEnterButton =
+            document.getElementById("introEnterButton");
+
+        const introSkipButton =
+            document.getElementById("introSkipButton");
+
+        const replayIntroButton =
+            document.getElementById("replayIntroButton");
+
+        const musicToggleButton =
+            document.getElementById("musicToggleButton");
+
+        const introMusic =
+            document.getElementById("introMusic");
+
+        const menuMusic =
+            document.getElementById("menuMusic");
+
+        const scriptMusic =
+            document.getElementById("scriptMusic");
+
+        const siteShell =
+            document.getElementById("siteShell");
+
+        let introArmed = false;
+        let introPlayed = false;
+        let openingInProgress = false;
+
+        let latestPuppetConnected = false;
+
+        let musicUnlocked = false;
+        let musicEnabled = true;
+
+        // 開場音樂可以較明顯；
+        // 進入系統後的 menu 音樂維持較低音量。
+        const INTRO_MUSIC_VOLUME = 0.30;
+        const MENU_MUSIC_VOLUME = 0.16;
+        const SCRIPT_MUSIC_VOLUME = 0.20;
+
+        // 目前音樂情境：
+        // intro  = 開場
+        // menu   = 選模式 / 自由操偶
+        // script = 劇本演出
+        let currentMusicContext = "intro";
+
+        // =========================================================
+        // 音樂系統
+        //
+        // 注意：
+        // 瀏覽器（Chrome / Safari）通常禁止「重新整理後直接有聲自動播放」。
+        // 因此重新整理後，必須先有一次使用者點擊，
+        // 例如「點擊準備開幕」，intro.mp3 才能可靠播放。
+        //
+        // intro.mp3：
+        //   使用者按「點擊準備開幕」時立即播放。
+        //   若手機尚未連線，就持續播放並等待；
+        //   手機連線後才開始拉幕。
+        //
+        // menu.mp3：
+        //   布幕拉開、進入選模式 / 主介面後播放。
+        //
+        // 載入劇本：
+        //   現階段暫停所有背景音樂。
+        //   之後確定劇本專屬音樂後，可以從這裡再接第三首。
+        // =========================================================
+
+        async function unlockMusic() {
+            if (musicUnlocked) {
+                return;
+            }
+
+            /*
+               瀏覽器通常要求使用者先操作一次頁面，
+               才允許之後由程式自動播放聲音。
+
+               因此按「準備開幕」時，
+               先短暫啟動 intro / menu 兩個 audio，
+               再立刻暫停並歸零。
+            */
+            introMusic.volume = 0.001;
+            menuMusic.volume = 0.001;
+            scriptMusic.volume = 0.001;
+
+            const results =
+                await Promise.allSettled([
+                    introMusic.play(),
+                    menuMusic.play(),
+                    scriptMusic.play()
+                ]);
+
+            const anyPlayed =
+                results.some(
+                    result =>
+                        result.status === "fulfilled"
+                );
+
+            if (!anyPlayed) {
+                console.warn(
+                    "瀏覽器尚未允許播放音樂。"
+                );
+
+                return;
+            }
+
+            introMusic.pause();
+            menuMusic.pause();
+            scriptMusic.pause();
+
+            try {
+                introMusic.currentTime = 0;
+                menuMusic.currentTime = 0;
+                scriptMusic.currentTime = 0;
+            }
+            catch (error) {
+                // 音檔尚未完成載入時 currentTime 可能暫時不能設定。
+            }
+
+            musicUnlocked = true;
+
+            updateMusicButton();
+        }
+
+        function fadeAudioTo(
+            audio,
+            targetVolume,
+            duration = 800,
+            onComplete = null
+        ) {
+            if (!audio) {
+                return;
+            }
+
+            const startVolume =
+                Number.isFinite(audio.volume)
+                    ? audio.volume
+                    : 0;
+
+            const startTime =
+                performance.now();
+
+            function step(now) {
+                const progress =
+                    Math.min(
+                        (now - startTime) / duration,
+                        1
+                    );
+
+                audio.volume =
+                    startVolume +
+                    (
+                        targetVolume -
+                        startVolume
+                    ) * progress;
+
+                if (progress < 1) {
+                    requestAnimationFrame(step);
+                }
+                else if (onComplete) {
+                    onComplete();
+                }
+            }
+
+            requestAnimationFrame(step);
+        }
+
+        function pauseAudio(
+            audio,
+            reset = false
+        ) {
+            if (!audio) {
+                return;
+            }
+
+            audio.pause();
+
+            if (reset) {
+                try {
+                    audio.currentTime = 0;
+                }
+                catch (error) {
+                    // 尚未載入完成時忽略即可。
+                }
+            }
+        }
+
+        function pauseAllMusic(
+            reset = false
+        ) {
+            pauseAudio(
+                introMusic,
+                reset
+            );
+
+            pauseAudio(
+                menuMusic,
+                reset
+            );
+
+            pauseAudio(
+                scriptMusic,
+                reset
+            );
+        }
+
+        async function playIntroMusic() {
+            currentMusicContext = "intro";
+
+            if (
+                !musicEnabled ||
+                !musicUnlocked
+            ) {
+                return;
+            }
+
+            pauseAudio(
+                menuMusic,
+                false
+            );
+
+            pauseAudio(
+                scriptMusic,
+                false
+            );
+
+            try {
+                introMusic.currentTime = 0;
+            }
+            catch (error) {
+                // ignore
+            }
+
+            introMusic.volume = 0.001;
+
+            try {
+                await introMusic.play();
+
+                fadeAudioTo(
+                    introMusic,
+                    INTRO_MUSIC_VOLUME,
+                    900
+                );
+            }
+            catch (error) {
+                console.warn(
+                    "開場音樂無法播放：",
+                    error
+                );
+            }
+
+            updateMusicButton();
+        }
+
+        async function playMenuMusic() {
+            currentMusicContext = "menu";
+
+            if (
+                !musicEnabled ||
+                !musicUnlocked
+            ) {
+                return;
+            }
+
+            pauseAudio(
+                introMusic,
+                false
+            );
+
+            pauseAudio(
+                scriptMusic,
+                false
+            );
+
+            menuMusic.volume = 0.001;
+
+            try {
+                await menuMusic.play();
+
+                fadeAudioTo(
+                    menuMusic,
+                    MENU_MUSIC_VOLUME,
+                    1200
+                );
+            }
+            catch (error) {
+                console.warn(
+                    "選模式背景音樂無法播放。請確認 static/audio/menu.mp3 是否存在。",
+                    error
+                );
+            }
+
+            updateMusicButton();
+        }
+
+        async function playScriptMusic() {
+            currentMusicContext = "script";
+
+            if (
+                !musicEnabled ||
+                !musicUnlocked
+            ) {
+                return;
+            }
+
+            pauseAudio(
+                introMusic,
+                false
+            );
+
+            pauseAudio(
+                menuMusic,
+                false
+            );
+
+            scriptMusic.volume = 0.001;
+
+            try {
+                await scriptMusic.play();
+
+                fadeAudioTo(
+                    scriptMusic,
+                    SCRIPT_MUSIC_VOLUME,
+                    1100
+                );
+            }
+            catch (error) {
+                console.warn(
+                    "劇本背景音樂無法播放。請確認 static/audio/script.mp3 是否存在。",
+                    error
+                );
+            }
+
+            updateMusicButton();
+        }
+
+        async function switchMenuToScriptMusic() {
+            currentMusicContext = "script";
+
+            if (!musicEnabled) {
+                pauseAllMusic(false);
+                updateMusicButton();
+                return;
+            }
+
+            if (!musicUnlocked) {
+                await unlockMusic();
+            }
+
+            if (!musicUnlocked) {
+                return;
+            }
+
+            /*
+               真正的 crossfade：
+               menu.mp3 與 script.mp3 短暫重疊，
+               menu 慢慢淡出、script 同時淡入。
+            */
+
+            try {
+                scriptMusic.volume = 0.001;
+
+                if (scriptMusic.paused) {
+                    await scriptMusic.play();
+                }
+            }
+            catch (error) {
+                console.warn(
+                    "劇本背景音樂無法播放：",
+                    error
+                );
+            }
+
+            // script 淡入
+            fadeAudioTo(
+                scriptMusic,
+                SCRIPT_MUSIC_VOLUME,
+                1200
+            );
+
+            // menu 同時淡出
+            if (!menuMusic.paused) {
+                fadeAudioTo(
+                    menuMusic,
+                    0,
+                    950,
+                    () => {
+                        pauseAudio(
+                            menuMusic,
+                            false
+                        );
+                    }
+                );
+            }
+
+            // 保險：開場音樂若仍存在也淡出
+            if (!introMusic.paused) {
+                fadeAudioTo(
+                    introMusic,
+                    0,
+                    700,
+                    () => {
+                        pauseAudio(
+                            introMusic,
+                            false
+                        );
+                    }
+                );
+            }
+
+            updateMusicButton();
+        }
+
+        async function switchScriptToMenuMusic() {
+            currentMusicContext = "menu";
+
+            if (!musicEnabled) {
+                pauseAllMusic(false);
+                updateMusicButton();
+                return;
+            }
+
+            if (!musicUnlocked) {
+                await unlockMusic();
+            }
+
+            if (!musicUnlocked) {
+                return;
+            }
+
+            try {
+                menuMusic.volume = 0.001;
+
+                if (menuMusic.paused) {
+                    await menuMusic.play();
+                }
+            }
+            catch (error) {
+                console.warn(
+                    "選模式背景音樂無法播放：",
+                    error
+                );
+            }
+
+            // menu 淡入
+            fadeAudioTo(
+                menuMusic,
+                MENU_MUSIC_VOLUME,
+                1100
+            );
+
+            // script 同時淡出
+            if (!scriptMusic.paused) {
+                fadeAudioTo(
+                    scriptMusic,
+                    0,
+                    900,
+                    () => {
+                        pauseAudio(
+                            scriptMusic,
+                            false
+                        );
+                    }
+                );
+            }
+
+            updateMusicButton();
+        }
+
+        function switchIntroToMenuMusic() {
+            if (!musicEnabled) {
+                pauseAllMusic(false);
+                updateMusicButton();
+                return;
+            }
+
+            // 開場音樂淡出
+            if (!introMusic.paused) {
+                fadeAudioTo(
+                    introMusic,
+                    0,
+                    650,
+                    () => {
+                        pauseAudio(
+                            introMusic,
+                            true
+                        );
+                    }
+                );
+            }
+
+            // 稍微重疊一點，讓銜接比較自然
+            setTimeout(
+                () => {
+                    playMenuMusic();
+                },
+                250
+            );
+        }
+
+        function updateMusicButton() {
+            musicToggleButton.textContent =
+                musicEnabled
+                    ? "音樂：開"
+                    : "音樂：關";
+        }
+
+        async function turnMusicOff() {
+            musicEnabled = false;
+
+            if (!introMusic.paused) {
+                fadeAudioTo(
+                    introMusic,
+                    0,
+                    300
+                );
+            }
+
+            if (!menuMusic.paused) {
+                fadeAudioTo(
+                    menuMusic,
+                    0,
+                    300
+                );
+            }
+
+            if (!scriptMusic.paused) {
+                fadeAudioTo(
+                    scriptMusic,
+                    0,
+                    300
+                );
+            }
+
+            setTimeout(
+                () => {
+                    pauseAllMusic(false);
+                },
+                330
+            );
+
+            updateMusicButton();
+        }
+
+        async function turnMusicOn() {
+            musicEnabled = true;
+
+            if (!musicUnlocked) {
+                await unlockMusic();
+            }
+
+            if (!musicUnlocked) {
+                musicEnabled = false;
+                updateMusicButton();
+                return;
+            }
+
+            /*
+               依目前所在情境恢復對應音樂：
+               intro  -> 開場音樂
+               menu   -> 選模式 / 自由操偶音樂
+               script -> 劇本音樂
+            */
+            if (
+                !introOverlay.classList.contains(
+                    "finished"
+                )
+            ) {
+                await playIntroMusic();
+            }
+            else if (
+                currentMusicContext === "script"
+            ) {
+                await playScriptMusic();
+            }
+            else {
+                await playMenuMusic();
+            }
+
+            updateMusicButton();
+        }
+
+        musicToggleButton.addEventListener(
+            "click",
+            async () => {
+                if (musicEnabled) {
+                    await turnMusicOff();
+                }
+                else {
+                    await turnMusicOn();
+                }
+            }
+        );
+
+
+        // =========================================================
+        // 開場動畫
+        // =========================================================
+
+        function updateIntroConnectionState(
+            connected
+        ) {
+            latestPuppetConnected = connected;
+
+            if (introPlayed) {
+                return;
+            }
+
+            if (connected) {
+                introStatus.classList.add(
+                    "connected"
+                );
+
+                if (introArmed) {
+                    introStatusText.textContent =
+                        "戲偶已就位，準備開幕";
+                }
+                else {
+                    introStatusText.textContent =
+                        "戲偶已就位，點擊準備開幕";
+
+                    introEnterButton.textContent =
+                        "點擊開幕";
+                }
+            }
+            else {
+                introStatus.classList.remove(
+                    "connected"
+                );
+
+                if (introArmed) {
+                    introStatusText.textContent =
+                        "舞台已準備，等待戲偶連線…";
+
+                    introEnterButton.textContent =
+                        "等待戲偶連線";
+                }
+                else {
+                    introStatusText.textContent =
+                        "等待舞台準備";
+
+                    introEnterButton.textContent =
+                        "點擊準備開幕";
+                }
+            }
+        }
+
+        function playOpening() {
+            if (
+                introPlayed ||
+                openingInProgress
+            ) {
+                return;
+            }
+
+            if (!latestPuppetConnected) {
+                updateIntroConnectionState(false);
+                return;
+            }
+
+            openingInProgress = true;
+            introPlayed = true;
+
+            introStatus.classList.add(
+                "connected"
+            );
+
+            introStatusText.textContent =
+                "戲偶就位 · 好戲開場";
+
+            introEnterButton.disabled = true;
+
+            if (
+                musicUnlocked &&
+                musicEnabled &&
+                introMusic.paused
+            ) {
+                /*
+                   正常情況下 intro 已在按「準備開幕」時開始播放。
+                   這裡只是保險：如果音樂曾被暫停，開幕時再補播，
+                   不會重新把正在播放的 intro 從頭開始。
+                */
+                introMusic.volume =
+                    Math.max(
+                        introMusic.volume,
+                        0.001
+                    );
+
+                introMusic
+                    .play()
+                    .catch(
+                        error => {
+                            console.warn(
+                                "開場音樂無法繼續播放：",
+                                error
+                            );
+                        }
+                    );
+
+                fadeAudioTo(
+                    introMusic,
+                    INTRO_MUSIC_VOLUME,
+                    650
+                );
+            }
+
+            // 先讓觀眾看到「好戲開場」
+            setTimeout(
+                () => {
+                    introOverlay.classList.add(
+                        "opening"
+                    );
+                },
+                500
+            );
+
+            // 布幕開始拉開後，真正的主介面從後方逐步浮現。
+            setTimeout(
+                () => {
+                    siteShell.classList.add(
+                        "is-revealed"
+                    );
+                },
+                1050
+            );
+
+            // 布幕完成後移除遮罩
+            setTimeout(
+                () => {
+                    introOverlay.classList.add(
+                        "finished"
+                    );
+
+                    document.body.classList.remove(
+                        "intro-lock"
+                    );
+
+                    openingInProgress = false;
+
+                    // 開場結束，從 intro.mp3 切換到 menu.mp3
+                    switchIntroToMenuMusic();
+                },
+                3500
+            );
+        }
+
+        introEnterButton.addEventListener(
+            "click",
+            async () => {
+                introArmed = true;
+
+                introEnterButton.disabled = true;
+
+                await unlockMusic();
+
+                /*
+                   使用者按下「點擊準備開幕」後，
+                   立刻開始播放 intro.mp3。
+
+                   如果手機還沒連線：
+                   → intro 持續播放
+                   → 畫面維持等待戲偶連線
+
+                   如果手機已連線：
+                   → intro 已開始播放
+                   → 接著直接拉開布幕
+                */
+                if (
+                    musicEnabled &&
+                    musicUnlocked
+                ) {
+                    await playIntroMusic();
+                }
+
+                introEnterButton.disabled = false;
+
+                if (latestPuppetConnected) {
+                    playOpening();
+                }
+                else {
+                    updateIntroConnectionState(
+                        false
+                    );
+                }
+            }
+        );
+
+        introSkipButton.addEventListener(
+            "click",
+            () => {
+                introPlayed = true;
+                openingInProgress = false;
+
+                introOverlay.classList.add(
+                    "finished"
+                );
+
+                siteShell.classList.add(
+                    "is-revealed"
+                );
+
+                document.body.classList.remove(
+                    "intro-lock"
+                );
+
+                if (
+                    musicEnabled &&
+                    musicUnlocked
+                ) {
+                    playMenuMusic();
+                }
+            }
+        );
+
+        // =========================================================
+        // 重播開場
+        //
+        // 不需要手機重新斷線再連線。
+        // 方便成果展示前重新播放。
+        // =========================================================
+
+        replayIntroButton.addEventListener(
+            "click",
+            async () => {
+                introPlayed = false;
+                openingInProgress = false;
+                introArmed = true;
+
+                introOverlay.classList.remove(
+                    "finished",
+                    "opening"
+                );
+
+                siteShell.classList.remove(
+                    "is-revealed"
+                );
+
+                document.body.classList.add(
+                    "intro-lock"
+                );
+
+                introEnterButton.disabled = false;
+
+                pauseAllMusic(
+                    true
+                );
+
+                await unlockMusic();
+
+                updateIntroConnectionState(
+                    latestPuppetConnected
+                );
+
+                if (latestPuppetConnected) {
+                    setTimeout(
+                        playOpening,
+                        450
+                    );
+                }
+            }
+        );
+
+        // =========================================================
+        // Mode UI
+        // =========================================================
+
+        function showMode(mode) {
+            const scriptPanel =
+                document.getElementById(
+                    "scriptPanel"
+                );
+
+            const toolbar =
+                document.getElementById(
+                    "scriptToolbar"
+                );
+
+            const scriptButton =
+                document.getElementById(
+                    "scriptModeButton"
+                );
+
+            const freeButton =
+                document.getElementById(
+                    "freeModeButton"
+                );
+
+            if (mode === "free") {
+                document.body.classList.add(
+                    "free-mode"
+                );
+
+                document.body.classList.remove(
+                    "script-mode"
+                );
+
+                scriptPanel.classList.add(
+                    "hidden"
+                );
+
+                document
+                    .getElementById(
+                        "freeActionView"
+                    )
+                    .classList.remove(
+                        "hidden"
+                    );
+
+                document
+                    .getElementById(
+                        "scriptSceneView"
+                    )
+                    .classList.add(
+                        "hidden"
+                    );
+
+                document
+                    .getElementById(
+                        "actionPanelTitle"
+                    )
+                    .textContent =
+                        "手勢 → 戲偶動作";
+
+                document
+                    .getElementById(
+                        "headerScriptState"
+                    )
+                    .classList.add(
+                        "hidden"
+                    );
+
+                document
+                    .getElementById(
+                        "compactSceneNumber"
+                    )
+                    .classList.add(
+                        "hidden"
+                    );
+
+                lastStageOverlayScene =
+                    null;
+
+                document
+                    .getElementById(
+                        "stageSceneOverlay"
+                    )
+                    .classList.remove(
+                        "show"
+                    );
+
+                toolbar.classList.add(
+                    "hidden"
+                );
+
+                scriptButton.classList.remove(
+                    "active"
+                );
+
+                freeButton.classList.add(
+                    "active"
+                );
+            }
+            else {
+                document.body.classList.add(
+                    "script-mode"
+                );
+
+                document.body.classList.remove(
+                    "free-mode"
+                );
+
+                // 劇本資訊改放在右下角，因此舊的大型 scriptPanel
+                // 保留在 DOM 但不顯示。
+                scriptPanel.classList.add(
+                    "hidden"
+                );
+
+                document
+                    .getElementById(
+                        "freeActionView"
+                    )
+                    .classList.add(
+                        "hidden"
+                    );
+
+                document
+                    .getElementById(
+                        "scriptSceneView"
+                    )
+                    .classList.remove(
+                        "hidden"
+                    );
+
+                document
+                    .getElementById(
+                        "actionPanelTitle"
+                    )
+                    .textContent =
+                        "《文士舞劍》";
+
+                document
+                    .getElementById(
+                        "headerScriptState"
+                    )
+                    .classList.remove(
+                        "hidden"
+                    );
+
+                document
+                    .getElementById(
+                        "compactSceneNumber"
+                    )
+                    .classList.remove(
+                        "hidden"
+                    );
+
+                toolbar.classList.remove(
+                    "hidden"
+                );
+
+                scriptButton.classList.add(
+                    "active"
+                );
+
+                freeButton.classList.remove(
+                    "active"
+                );
+            }
+        }
+
+        // =========================================================
+        // 切換模式
+        // =========================================================
+
+        async function changeMode(mode) {
+            document.body.classList.add(
+                "mode-switching"
+            );
+
+            try {
+                const response =
+                    await fetch(
+                        "/set_mode",
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+                            body: JSON.stringify({
+                                mode: mode
+                            })
+                        }
+                    );
+
+                if (!response.ok) {
+                    throw new Error(
+                        `HTTP ${response.status}`
+                    );
+                }
+
+                // 稍微留一點時間給淡出，再換內容。
+                await new Promise(
+                    resolve => setTimeout(
+                        resolve,
+                        160
+                    )
+                );
+
+                // 從劇本模式切回自由操偶時，
+                // 劇本音樂淡出，恢復 menu 背景音樂。
+                if (
+                    mode === "free" &&
+                    currentMusicContext === "script"
+                ) {
+                    switchScriptToMenuMusic();
+                }
+
+                showMode(mode);
+                updateState();
+            }
+            catch (error) {
+                console.error(
+                    "模式切換失敗：",
+                    error
+                );
+            }
+            finally {
+                setTimeout(
+                    () => {
+                        document.body.classList.remove(
+                            "mode-switching"
+                        );
+                    },
+                    170
+                );
+            }
+        }
+
+        document
+            .getElementById(
+                "scriptModeButton"
+            )
+            .addEventListener(
+                "click",
+                () => changeMode(
+                    "script"
+                )
+            );
+
+        document
+            .getElementById(
+                "freeModeButton"
+            )
+            .addEventListener(
+                "click",
+                () => changeMode(
+                    "free"
+                )
+            );
+
+        // =========================================================
+        // 載入劇本
+        // =========================================================
+
+        document
+            .getElementById(
+                "loadScriptButton"
+            )
+            .addEventListener(
+                "click",
+                async () => {
+                    try {
+                        const response =
+                            await fetch(
+                                "/load_script",
+                                {
+                                    method: "POST"
+                                }
+                            );
+
+                        const result =
+                            await response.json();
+
+                        if (!result.success) {
+                            alert(
+                                result.message ||
+                                "載入劇本失敗"
+                            );
+
+                            return;
+                        }
+
+                        const button =
+                            document.getElementById(
+                                "startScriptButton"
+                            );
+
+                        button.textContent =
+                            "開始演出";
+
+                        button.disabled =
+                            false;
+
+                        // 載入劇本只是準備階段：
+                        // 這時仍維持 menu.mp3。
+                        // 若是重新載入劇本、目前還在 script 音樂，
+                        // 則淡出 script 並回到 menu。
+                        if (
+                            currentMusicContext === "script"
+                        ) {
+                            switchScriptToMenuMusic();
+                        }
+                        else {
+                            currentMusicContext = "menu";
+                        }
+
+                        updateState();
+                        flashScriptPanel();
+                    }
+                    catch (error) {
+                        console.error(
+                            "載入劇本失敗：",
+                            error
+                        );
+                    }
+                }
+            );
+
+        // =========================================================
+        // 開始演出
+        // =========================================================
+
+        document
+            .getElementById(
+                "startScriptButton"
+            )
+            .addEventListener(
+                "click",
+                async () => {
+                    const button =
+                        document.getElementById(
+                            "startScriptButton"
+                        );
+
+                    try {
+                        const response =
+                            await fetch(
+                                "/start_script",
+                                {
+                                    method: "POST"
+                                }
+                            );
+
+                        const result =
+                            await response.json();
+
+                        if (!result.success) {
+                            alert(
+                                result.message
+                            );
+
+                            return;
+                        }
+
+                        button.textContent =
+                            "演出進行中";
+
+                        button.disabled =
+                            true;
+
+                        // 真正開始演出時才換成劇本音樂。
+                        // menu.mp3 與 script.mp3 會交疊淡入淡出。
+                        await switchMenuToScriptMusic();
+
+                        updateState();
+                        flashScriptPanel();
+                    }
+                    catch (error) {
+                        console.error(
+                            "開始演出失敗：",
+                            error
+                        );
+                    }
+                }
+            );
+
+        // =========================================================
+        // 劇本操作的小型舞台回饋
+        // =========================================================
+
+        function flashScriptPanel() {
+            const panel =
+                document.getElementById(
+                    "scriptPanel"
+                );
+
+            panel.animate(
+                [
+                    {
+                        filter: "brightness(1)"
+                    },
+                    {
+                        filter: "brightness(1.035)"
+                    },
+                    {
+                        filter: "brightness(1)"
+                    }
+                ],
+                {
+                    duration: 520,
+                    easing: "ease-out"
+                }
+            );
+        }
+
+        // =========================================================
+        // Progress
+        // =========================================================
+
+        function updateProgress(
+            current,
+            total
+        ) {
+            const container =
+                document.getElementById(
+                    "progressDots"
+                );
+
+            container.innerHTML = "";
+
+            const defaultSceneNames = [
+                "登場",
+                "行禮",
+                "起劍",
+                "揮劍",
+                "突刺",
+                "收勢"
+            ];
+
+            for (
+                let i = 0;
+                i < total;
+                i++
+            ) {
+                const dot =
+                    document.createElement(
+                        "div"
+                    );
+
+                dot.className =
+                    "progress-dot";
+
+                if (i < current) {
+                    dot.classList.add(
+                        "done"
+                    );
+                }
+                else if (i === current) {
+                    dot.classList.add(
+                        "current"
+                    );
+                }
+
+                const sceneName =
+                    defaultSceneNames[i] ||
+                    `第 ${i + 1} 幕`;
+
+                dot.innerHTML = `
+                    <span class="scene-step-number">
+                        ${String(i + 1).padStart(2, "0")}
+                    </span>
+                    <span class="scene-step-name">
+                        ${sceneName}
+                    </span>
+                `;
+
+                container.appendChild(
+                    dot
+                );
+            }
+        }
+
+        // =========================================================
+        // 自由模式動作列表
+        // =========================================================
+
+        function updateActionList(actions) {
+            const container =
+                document.getElementById(
+                    "actionList"
+                );
+
+            container.innerHTML = "";
+
+            if (!Array.isArray(actions)) {
+                return;
+            }
+
+            actions.forEach(
+                action => {
+                    const card =
+                        document.createElement(
+                            "div"
+                        );
+
+                    card.className =
+                        "gesture-action-card";
+
+                    card.innerHTML = `
+                        <div class="gesture-icon-large">
+                            ${action.gesture_icon ?? ""}
+                        </div>
+
+                        <div>
+                            <div class="gesture-name-display">
+                                ${action.gesture_name ?? ""}
+                            </div>
+                        </div>
+
+                        <div class="gesture-arrow">
+                            →
+                        </div>
+
+                        <div>
+                            <div class="gesture-action-name">
+                                ${action.action_name ?? ""}
+                            </div>
+                        </div>
+                    `;
+
+                    container.appendChild(
+                        card
+                    );
+                }
+            );
+        }
+
+        // =========================================================
+        // 左右手顯示工具
+        // =========================================================
+
+        function getDetectedActionName(
+            fingerCount,
+            fallbackAction = ""
+        ) {
+            const actionMap = {
+                0: "準備姿勢",
+                1: "揮手",
+                2: "敬禮",
+                3: "雙手下劈",
+                4: "揮劍",
+                5: "張開手"
+            };
+
+            if (
+                fingerCount !== null &&
+                fingerCount !== undefined &&
+                actionMap[fingerCount] !== undefined
+            ) {
+                return actionMap[fingerCount];
+            }
+
+            return fallbackAction || "";
+        }
+
+        function updateHandDetectionCard(
+            valueElementId,
+            cardElementId,
+            handState
+        ) {
+            const valueElement =
+                document.getElementById(
+                    valueElementId
+                );
+
+            const cardElement =
+                document.getElementById(
+                    cardElementId
+                );
+
+            const fingerCount =
+                handState?.finger_count;
+
+            if (
+                fingerCount === null ||
+                fingerCount === undefined
+            ) {
+                valueElement.textContent =
+                    "尚未偵測";
+
+                valueElement.classList.add(
+                    "empty"
+                );
+
+                cardElement.classList.remove(
+                    "active"
+                );
+
+                return;
+            }
+
+            const actionName =
+                getDetectedActionName(
+                    fingerCount,
+                    handState?.action
+                );
+
+            valueElement.innerHTML =
+                `${fingerCount} 根手指
+                 <span class="hand-detection-arrow">
+                    →
+                 </span>
+                 ${actionName}`;
+
+            valueElement.classList.remove(
+                "empty"
+            );
+
+            cardElement.classList.add(
+                "active"
+            );
+        }
+
+        // =========================================================
+        // 劇本模式：右下「本幕演出」
+        // =========================================================
+
+        const SCRIPT_SCENE_NAMES = [
+            "登場",
+            "行禮",
+            "起劍",
+            "揮劍",
+            "突刺",
+            "收勢"
+        ];
+
+        let lastStageOverlayScene = null;
+        let stageOverlayTimer = null;
+
+        function renderCompactProgress(
+            current,
+            total
+        ) {
+            const container =
+                document.getElementById(
+                    "compactSceneProgress"
+                );
+
+            container.innerHTML = "";
+
+            for (
+                let i = 0;
+                i < total;
+                i++
+            ) {
+                const item =
+                    document.createElement(
+                        "div"
+                    );
+
+                item.className =
+                    "compact-progress-item";
+
+                if (i < current) {
+                    item.classList.add(
+                        "done"
+                    );
+                }
+                else if (i === current) {
+                    item.classList.add(
+                        "current"
+                    );
+                }
+
+                const name =
+                    SCRIPT_SCENE_NAMES[i] ||
+                    `第 ${i + 1} 幕`;
+
+                item.innerHTML = `
+                    <div class="compact-progress-dot"></div>
+                    <div class="compact-progress-name">
+                        ${name}
+                    </div>
+                `;
+
+                container.appendChild(
+                    item
+                );
+            }
+        }
+
+        function showStageSceneOverlay(
+            sceneIndex,
+            sceneTitle
+        ) {
+            const overlay =
+                document.getElementById(
+                    "stageSceneOverlay"
+                );
+
+            const number =
+                document.getElementById(
+                    "stageSceneNumber"
+                );
+
+            const title =
+                document.getElementById(
+                    "stageSceneTitle"
+                );
+
+            number.textContent =
+                `第 ${sceneIndex + 1} 幕`;
+
+            title.textContent =
+                sceneTitle;
+
+            overlay.classList.remove(
+                "show"
+            );
+
+            // 重新觸發 transition
+            void overlay.offsetWidth;
+
+            overlay.classList.add(
+                "show"
+            );
+
+            if (stageOverlayTimer) {
+                clearTimeout(
+                    stageOverlayTimer
+                );
+            }
+
+            stageOverlayTimer =
+                setTimeout(
+                    () => {
+                        overlay.classList.remove(
+                            "show"
+                        );
+                    },
+                    2200
+                );
+        }
+
+        function setCompactStatus(
+            text,
+            statusClass = ""
+        ) {
+            const status =
+                document.getElementById(
+                    "compactSceneStatus"
+                );
+
+            const statusText =
+                document.getElementById(
+                    "compactSceneStatusText"
+                );
+
+            status.classList.remove(
+                "correct",
+                "warning",
+                "finished"
+            );
+
+            if (statusClass) {
+                status.classList.add(
+                    statusClass
+                );
+            }
+
+            statusText.textContent =
+                text;
+        }
+
+        function renderScriptScene(
+            state
+        ) {
+            const total =
+                state.total_scenes || 0;
+
+            const current =
+                state.current_scene || 0;
+
+            const scene =
+                state.scene;
+
+            const scriptSceneView =
+                document.getElementById(
+                    "scriptSceneView"
+                );
+
+            scriptSceneView.classList.toggle(
+                "finished-view",
+                Boolean(state.finished)
+            );
+
+            const stateChip =
+                document.getElementById(
+                    "compactScriptState"
+                );
+
+            const headerStateChip =
+                document.getElementById(
+                    "headerScriptState"
+                );
+
+            document
+                .getElementById(
+                    "compactSceneNumber"
+                )
+                .textContent =
+                    total
+                    ? `第 ${Math.min(current + 1, total)} / ${total} 幕`
+                    : "第 0 / 0 幕";
+
+            renderCompactProgress(
+                current,
+                total
+            );
+
+            stateChip.classList.remove(
+                "running",
+                "done"
+            );
+
+            headerStateChip.classList.remove(
+                "running",
+                "done"
+            );
+
+            if (state.finished) {
+                stateChip.textContent =
+                    "演出完成";
+
+                headerStateChip.textContent =
+                    "演出完成";
+
+                stateChip.classList.add(
+                    "done"
+                );
+
+                headerStateChip.classList.add(
+                    "done"
+                );
+
+                document
+                    .getElementById(
+                        "compactSceneTitle"
+                    )
+                    .textContent =
+                        "演出完成";
+
+                document
+                    .getElementById(
+                        "compactStoryText"
+                    )
+                    .textContent =
+                        "《文士舞劍》已完成全部幕次。";
+
+                document
+                    .getElementById(
+                        "compactGestureIcon"
+                    )
+                    .textContent =
+                        "終";
+
+                document
+                    .getElementById(
+                        "compactGestureName"
+                    )
+                    .textContent =
+                        "劇本完成";
+
+                document
+                    .getElementById(
+                        "compactOperatorText"
+                    )
+                    .textContent =
+                        "可重新載入劇本再次演出。";
+
+                document
+                    .getElementById(
+                        "compactPuppetAction"
+                    )
+                    .textContent =
+                        "收幕";
+
+                document
+                    .getElementById(
+                        "compactPuppetText"
+                    )
+                    .textContent =
+                        "戲偶已完成本次演出。";
+
+                setCompactStatus(
+                    "全部幕次完成",
+                    "finished"
+                );
+
+                return;
+            }
+
+            if (!state.generated) {
+                stateChip.textContent =
+                    "尚未載入";
+
+                headerStateChip.textContent =
+                    "尚未載入";
+
+                document
+                    .getElementById(
+                        "compactSceneTitle"
+                    )
+                    .textContent =
+                        "等待劇本";
+
+                document
+                    .getElementById(
+                        "compactStoryText"
+                    )
+                    .textContent =
+                        "請先載入《文士舞劍》。";
+
+                document
+                    .getElementById(
+                        "compactGestureIcon"
+                    )
+                    .textContent =
+                        "—";
+
+                document
+                    .getElementById(
+                        "compactGestureName"
+                    )
+                    .textContent =
+                        "尚未指定";
+
+                document
+                    .getElementById(
+                        "compactOperatorText"
+                    )
+                    .textContent =
+                        "載入劇本後會顯示本幕需要的手勢。";
+
+                document
+                    .getElementById(
+                        "compactPuppetAction"
+                    )
+                    .textContent =
+                        "—";
+
+                document
+                    .getElementById(
+                        "compactPuppetText"
+                    )
+                    .textContent =
+                        "—";
+
+                setCompactStatus(
+                    "請先載入劇本"
+                );
+
+                return;
+            }
+
+            if (!state.started) {
+                stateChip.textContent =
+                    "等待開演";
+
+                headerStateChip.textContent =
+                    "等待開演";
+
+                setCompactStatus(
+                    "劇本已載入，請按「開始演出」"
+                );
+            }
+            else {
+                stateChip.textContent =
+                    "演出中";
+
+                headerStateChip.textContent =
+                    "演出中";
+
+                stateChip.classList.add(
+                    "running"
+                );
+
+                headerStateChip.classList.add(
+                    "running"
+                );
+            }
+
+            if (!scene) {
+                return;
+            }
+
+            document
+                .getElementById(
+                    "compactSceneTitle"
+                )
+                .textContent =
+                    scene.scene_title ||
+                    "本幕";
+
+            document
+                .getElementById(
+                    "compactStoryText"
+                )
+                .textContent =
+                    scene.story_text ||
+                    "";
+
+            document
+                .getElementById(
+                    "compactGestureIcon"
+                )
+                .textContent =
+                    scene.gesture_icon ||
+                    "—";
+
+            document
+                .getElementById(
+                    "compactGestureName"
+                )
+                .textContent =
+                    scene.gesture_name ||
+                    "尚未指定";
+
+            document
+                .getElementById(
+                    "compactOperatorText"
+                )
+                .textContent =
+                    scene.operator_text ||
+                    "";
+
+            document
+                .getElementById(
+                    "compactPuppetAction"
+                )
+                .textContent =
+                    scene.action_name ||
+                    "—";
+
+            document
+                .getElementById(
+                    "compactPuppetText"
+                )
+                .textContent =
+                    scene.story_text ||
+                    "";
+
+            // 劇本目前只由 Right / P1 推進
+            const rightFingerCount =
+                state.character_1?.finger_count;
+
+            const expectedCount =
+                scene.gesture_count;
+
+            if (state.started) {
+                if (
+                    rightFingerCount === null ||
+                    rightFingerCount === undefined
+                ) {
+                    setCompactStatus(
+                        `等待右手比出 ${expectedCount} 根手指`
+                    );
+                }
+                else if (
+                    rightFingerCount === expectedCount
+                ) {
+                    setCompactStatus(
+                        `手勢正確：${rightFingerCount} 根，請保持穩定`,
+                        "correct"
+                    );
+                }
+                else {
+                    setCompactStatus(
+                        `目前右手 ${rightFingerCount} 根，請比 ${expectedCount} 根`,
+                        "warning"
+                    );
+                }
+            }
+
+            // 正式開演後，幕次改變時在左側舞台短暫顯示幕名
+            if (
+                state.started &&
+                current !== lastStageOverlayScene
+            ) {
+                lastStageOverlayScene =
+                    current;
+
+                showStageSceneOverlay(
+                    current,
+                    scene.scene_title ||
+                    SCRIPT_SCENE_NAMES[current] ||
+                    "本幕"
+                );
+            }
+        }
+
+        // =========================================================
+        // State
+        // =========================================================
+
+        async function updateState() {
+            try {
+                const response =
+                    await fetch(
+                        "/state",
+                        {
+                            cache: "no-store"
+                        }
+                    );
+
+                if (!response.ok) {
+                    throw new Error(
+                        `HTTP ${response.status}`
+                    );
+                }
+
+                const state =
+                    await response.json();
+
+                // ---------------------------------------------
+                // 實體戲偶手機連線
+                // ---------------------------------------------
+
+                const puppetStatus =
+                    document.getElementById(
+                        "puppetConnectionStatus"
+                    );
+
+                if (state.puppet_connected) {
+                    puppetStatus.textContent =
+                        "● 已連接";
+
+                    puppetStatus.style.color =
+                        "#2e7d32";
+                }
+                else {
+                    puppetStatus.textContent =
+                        "● 尚未連接";
+
+                    puppetStatus.style.color =
+                        "#888";
+                }
+
+                updateIntroConnectionState(
+                    Boolean(
+                        state.puppet_connected
+                    )
+                );
+
+                // 使用者已先按「準備開幕」，
+                // 之後手機一連線就自動拉開布幕。
+                if (
+                    introArmed &&
+                    state.puppet_connected &&
+                    !introPlayed
+                ) {
+                    playOpening();
+                }
+
+                // ---------------------------------------------
+                // 模式
+                // ---------------------------------------------
+
+                showMode(
+                    state.mode
+                );
+
+                // ---------------------------------------------
+                // 左右手分開顯示
+                //
+                // character_1 = Right / P1
+                // character_2 = Left  / P2
+                // ---------------------------------------------
+
+                let rightHandState =
+                    state.character_1;
+
+                let leftHandState =
+                    state.character_2;
+
+                // 相容舊版 /state：
+                // 若沒有 character_1 / character_2，
+                // 就使用 detected_hand 判斷目前是哪一手。
+                if (
+                    !rightHandState &&
+                    !leftHandState
+                ) {
+                    rightHandState = {
+                        finger_count: null,
+                        action: ""
+                    };
+
+                    leftHandState = {
+                        finger_count: null,
+                        action: ""
+                    };
+
+                    if (
+                        state.detected_hand === "Right"
+                    ) {
+                        rightHandState = {
+                            finger_count:
+                                state.detected_count,
+                            action:
+                                state.current_detected_action
+                        };
+                    }
+                    else if (
+                        state.detected_hand === "Left"
+                    ) {
+                        leftHandState = {
+                            finger_count:
+                                state.detected_count,
+                            action:
+                                state.current_detected_action
+                        };
+                    }
+                }
+
+                updateHandDetectionCard(
+                    "rightHandValue",
+                    "rightHandCard",
+                    rightHandState
+                );
+
+                updateHandDetectionCard(
+                    "leftHandValue",
+                    "leftHandCard",
+                    leftHandState
+                );
+
+                // ---------------------------------------------
+                // 劇本資訊
+                // ---------------------------------------------
+
+                document
+                    .getElementById(
+                        "scriptName"
+                    )
+                    .textContent =
+                        state.script_name ||
+                        "《文士舞劍》";
+
+                document
+                    .getElementById(
+                        "scriptDescription"
+                    )
+                    .textContent =
+                        state.script_description ||
+                        "請先載入劇本。";
+
+                if (state.finished) {
+                    document
+                        .getElementById(
+                            "sceneNumber"
+                        )
+                        .textContent =
+                            `完成 ${state.total_scenes} / ${state.total_scenes} 幕`;
+
+                    updateProgress(
+                        state.total_scenes,
+                        state.total_scenes
+                    );
+
+                    document
+                        .getElementById(
+                            "sceneTitle"
+                        )
+                        .textContent =
+                            "演出完成";
+
+                    document
+                        .getElementById(
+                            "storyText"
+                        )
+                        .textContent =
+                            "文士完成舞劍，整段表演正式結束。";
+
+                    document
+                        .getElementById(
+                            "gestureIcon"
+                        )
+                        .textContent =
+                            "終";
+
+                    document
+                        .getElementById(
+                            "gestureName"
+                        )
+                        .textContent =
+                            "劇本完成";
+
+                    document
+                        .getElementById(
+                            "operatorText"
+                        )
+                        .textContent =
+                            "《文士舞劍》演出完成";
+
+                    document
+                        .getElementById(
+                            "puppetAction"
+                        )
+                        .textContent =
+                            "演出結束";
+
+                    document
+                        .getElementById(
+                            "puppetText"
+                        )
+                        .textContent =
+                            "戲偶已完成本次劇本演出。";
+
+                    const button =
+                        document.getElementById(
+                            "startScriptButton"
+                        );
+
+                    button.textContent =
+                        "演出完成";
+
+                    button.disabled =
+                        true;
+                }
+                else {
+                    document
+                        .getElementById(
+                            "sceneNumber"
+                        )
+                        .textContent =
+                            `第 ${
+                                state.total_scenes
+                                ? state.current_scene + 1
+                                : 0
+                            } / ${
+                                state.total_scenes ?? 0
+                            } 幕`;
+
+                    updateProgress(
+                        state.current_scene || 0,
+                        state.total_scenes || 0
+                    );
+
+                    if (state.scene) {
+                        document
+                            .getElementById(
+                                "sceneTitle"
+                            )
+                            .textContent =
+                                state.scene.scene_title;
+
+                        document
+                            .getElementById(
+                                "storyText"
+                            )
+                            .textContent =
+                                state.scene.story_text;
+
+                        document
+                            .getElementById(
+                                "gestureIcon"
+                            )
+                            .textContent =
+                                state.scene.gesture_icon;
+
+                        document
+                            .getElementById(
+                                "gestureName"
+                            )
+                            .textContent =
+                                state.scene.gesture_name;
+
+                        document
+                            .getElementById(
+                                "operatorText"
+                            )
+                            .textContent =
+                                state.scene.operator_text;
+
+                        document
+                            .getElementById(
+                                "puppetAction"
+                            )
+                            .textContent =
+                                state.scene.action_name;
+
+                        document
+                            .getElementById(
+                                "puppetText"
+                            )
+                            .textContent =
+                                state.scene.story_text;
+                    }
+
+                    if (state.started) {
+                        const button =
+                            document.getElementById(
+                                "startScriptButton"
+                            );
+
+                        button.textContent =
+                            "演出進行中";
+
+                        button.disabled =
+                            true;
+                    }
+                }
+
+                // ---------------------------------------------
+                // 自由模式動作列表
+                // ---------------------------------------------
+
+                updateActionList(
+                    state.free_actions
+                );
+
+                renderScriptScene(
+                    state
+                );
+            }
+            catch (error) {
+                console.error(
+                    "更新狀態失敗：",
+                    error
+                );
+
+                if (
+                    !introPlayed &&
+                    !latestPuppetConnected
+                ) {
+                    introStatusText.textContent =
+                        "等待 Raspberry Pi 系統回應…";
+                }
+            }
+        }
+
+        // =========================================================
+        // 初始狀態
+        // =========================================================
+
+        introMusic.volume = 0;
+        menuMusic.volume = 0;
+        scriptMusic.volume = 0;
+
+        updateMusicButton();
+
+        setInterval(
+            updateState,
+            100
+        );
+
+        updateState();
+    </script>
+
+</body>
+</html>

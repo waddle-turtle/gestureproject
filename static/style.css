@@ -1,0 +1,19 @@
+:root { color-scheme: dark; font-family: system-ui, "Microsoft JhengHei", sans-serif; background: #101c25; color: #edf3f4; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { max-width: 960px; margin: auto; padding: 24px; }
+h1 { font-size: clamp(24px, 4vw, 36px); margin: 8px 0 16px; }
+h2 { font-size: 18px; }
+p { line-height: 1.7; }
+.eyebrow, a { color: #8bdec7; }
+.hint { color: #a9bdc5; font-size: 14px; }
+video, #preview { display: block; width: 100%; height: min(60vh, 540px); object-fit: contain; background: #050d13; border-radius: 12px; }
+.toolbar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 20px; }
+button, select { min-height: 44px; border-radius: 8px; padding: 8px 14px; font: inherit; color: inherit; border: 1px solid #557580; background: #1f3541; }
+button { cursor: pointer; }
+#start { background: #18725d; }
+button:disabled { opacity: .45; cursor: default; }
+section { margin-top: 24px; border-top: 1px solid #35505c; padding-top: 12px; }
+pre { padding: 16px; background: #08141c; border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
+code { color: #acd6e2; }
+[hidden] { display: none !important; }
