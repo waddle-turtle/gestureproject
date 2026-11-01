@@ -3789,6 +3789,35 @@
             margin-top: 0 !important;
         }
 
+        /* V19: 手勢影片控制列，保留既有舞台及音樂布局 */
+        .video-playback-controls { display:flex; align-items:center; flex-wrap:wrap; gap:7px; margin-bottom:9px; }
+        .video-playback-controls button { padding:8px 11px; font-size:12px; border-radius:3px; }
+        #videoPlaybackStatus { font-size:12px; color:#765f46; flex:1 1 125px; line-height:1.4; }
+
+        /* V14 開場：文字先消失，布幕直接揭露主介面 */
+        .intro-overlay { background: transparent; }
+        .intro-overlay::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            background: #160b08;
+            opacity: 1;
+            transition: opacity 0.55s ease;
+            pointer-events: none;
+        }
+        .intro-overlay.opening::before { opacity: 0; }
+        .intro-overlay .stage-glow { z-index: 1; }
+        .intro-overlay.opening .stage-glow { opacity: 0; }
+        .intro-overlay.text-exit .intro-center,
+        .intro-overlay.opening .intro-center {
+            opacity: 0;
+            transform: translateY(-14px) scale(0.97);
+            pointer-events: none;
+            transition: opacity 0.45s ease, transform 0.45s ease;
+        }
+        /* 主介面拉幕前就準備好，不再與布幕同步淡入 */
+        .site-shell.is-revealed { transition-duration: 0.2s; }
     </style>
 </head>
 
@@ -3916,7 +3945,7 @@
                 id="loadScriptButton"
                 class="primary"
             >
-                載入《文士舞劍》
+                載入《雙俠論劍》
             </button>
 
             <button
@@ -3979,6 +4008,17 @@
             <div class="right-panel">
 
                 <section class="panel hand-panel">
+                    <div class="video-playback-controls" aria-label="手勢影像來源切換">
+                        <button type="button" id="sourceCamera" class="primary">樹莓派鏡頭</button>
+                        <button type="button" id="sourceVideo" class="secondary">手勢影片</button>
+                        <span id="sourceStatus" role="status">目前：樹莓派鏡頭</span>
+                    </div>
+                    <div class="video-playback-controls" id="videoOnlyControls" aria-label="預錄手勢影片控制" hidden>
+                        <button type="button" id="videoPlay" class="primary">播放影片</button>
+                        <button type="button" id="videoPause" class="secondary">暫停</button>
+                        <button type="button" id="videoRestart" class="secondary">回到開頭</button>
+                        <span id="videoPlaybackStatus" role="status">讀取影片狀態中…</span>
+                    </div>
                     <h2 style="font-size: 18px;">
                         即時手勢辨識
                     </h2>
@@ -4115,7 +4155,7 @@
                                 id="compactStoryText"
                                 class="compact-story-text"
                             >
-                                請先載入《文士舞劍》。
+                                請先載入《雙俠論劍》。
                             </div>
                         </div>
 
@@ -4214,7 +4254,7 @@
                             id="scriptName"
                             class="script-name"
                         >
-                            《文士舞劍》
+                            《雙俠論劍》
                         </div>
 
                         <div
@@ -4268,7 +4308,7 @@
                         id="storyText"
                         class="story-text"
                     >
-                        請先載入《文士舞劍》。
+                        請先載入《雙俠論劍》。
                     </div>
                 </div>
             </div>
@@ -5057,25 +5097,14 @@
                 );
             }
 
-            // 先讓觀眾看到「好戲開場」
-            setTimeout(
-                () => {
-                    introOverlay.classList.add(
-                        "opening"
-                    );
-                },
-                500
-            );
+            // 第一階段：題字先退場，主介面在布幕後方就位。
+            introOverlay.classList.add("text-exit");
+            siteShell.classList.add("is-revealed");
 
-            // 布幕開始拉開後，真正的主介面從後方逐步浮現。
-            setTimeout(
-                () => {
-                    siteShell.classList.add(
-                        "is-revealed"
-                    );
-                },
-                1050
-            );
+            // 第二階段：字消失後才拉開布幕，直接露出主介面。
+            setTimeout(() => {
+                introOverlay.classList.add("opening");
+            }, 650);
 
             // 布幕完成後移除遮罩
             setTimeout(
@@ -5093,7 +5122,7 @@
                     // 開場結束，從 intro.mp3 切換到 menu.mp3
                     switchIntroToMenuMusic();
                 },
-                3500
+                3700
             );
         }
 
@@ -5181,7 +5210,8 @@
 
                 introOverlay.classList.remove(
                     "finished",
-                    "opening"
+                    "opening",
+                    "text-exit"
                 );
 
                 siteShell.classList.remove(
@@ -5349,7 +5379,7 @@
                         "actionPanelTitle"
                     )
                     .textContent =
-                        "《文士舞劍》";
+                        "《雙俠論劍》";
 
                 document
                     .getElementById(
@@ -6069,7 +6099,7 @@
                         "compactStoryText"
                     )
                     .textContent =
-                        "《文士舞劍》已完成全部幕次。";
+                        "《雙俠論劍》已完成全部幕次。";
 
                 document
                     .getElementById(
@@ -6133,7 +6163,7 @@
                         "compactStoryText"
                     )
                     .textContent =
-                        "請先載入《文士舞劍》。";
+                        "請先載入《雙俠論劍》。";
 
                 document
                     .getElementById(
@@ -6336,6 +6366,10 @@
                 const state =
                     await response.json();
 
+                // 更新預錄影片狀態（影片和 Arduino 狀態互不影響）
+                updateVideoSourceState(state.video_source || 'camera');
+                updateVideoPlaybackStatus(state.video);
+
                 // ---------------------------------------------
                 // 實體戲偶手機連線
                 // ---------------------------------------------
@@ -6458,7 +6492,7 @@
                     )
                     .textContent =
                         state.script_name ||
-                        "《文士舞劍》";
+                        "《雙俠論劍》";
 
                 document
                     .getElementById(
@@ -6493,7 +6527,7 @@
                             "storyText"
                         )
                         .textContent =
-                            "文士完成舞劍，整段表演正式結束。";
+                            "雙俠完成論劍，整段表演正式結束。";
 
                     document
                         .getElementById(
@@ -6514,7 +6548,7 @@
                             "operatorText"
                         )
                         .textContent =
-                            "《文士舞劍》演出完成";
+                            "《雙俠論劍》演出完成";
 
                     document
                         .getElementById(
@@ -6652,6 +6686,96 @@
                 }
             }
         }
+
+        // =========================================================
+        // 預錄手勢影片：呼叫 app.py 的 /video_control
+        // =========================================================
+        const videoPlayButton = document.getElementById('videoPlay');
+        const videoPauseButton = document.getElementById('videoPause');
+        const videoRestartButton = document.getElementById('videoRestart');
+        const videoPlaybackStatus = document.getElementById('videoPlaybackStatus');
+
+        const sourceCameraButton = document.getElementById('sourceCamera');
+        const sourceVideoButton = document.getElementById('sourceVideo');
+        const sourceStatus = document.getElementById('sourceStatus');
+        const videoOnlyControls = document.getElementById('videoOnlyControls');
+
+        function updateVideoSourceState(source) {
+            const isVideo = source === 'video';
+            sourceCameraButton.className = isVideo ? 'secondary' : 'primary';
+            sourceVideoButton.className = isVideo ? 'primary' : 'secondary';
+            sourceStatus.textContent = isVideo ? '目前：預錄手勢影片' : '目前：樹莓派即時鏡頭';
+            videoOnlyControls.hidden = !isVideo;
+            videoOnlyControls.style.display = isVideo ? 'flex' : 'none';
+        }
+
+        async function selectGestureSource(source) {
+            try {
+                sourceStatus.textContent = '正在切換影像來源…';
+                const response = await fetch('/set_video_source', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({source})
+                });
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || `HTTP ${response.status}`);
+                }
+                updateVideoSourceState(source);
+                await updateState();
+            } catch (error) {
+                sourceStatus.textContent = `切換失敗：${error.message}`;
+            }
+        }
+        sourceCameraButton.addEventListener('click', () => selectGestureSource('camera'));
+        sourceVideoButton.addEventListener('click', () => selectGestureSource('video'));
+
+        function updateVideoPlaybackStatus(video) {
+            if (!video) {
+                videoPlaybackStatus.textContent = '後端沒有提供影片狀態，請確認 app.py 版本';
+                return;
+            }
+            const labels = {
+                loading: '影片載入中', paused: '已暫停', playing: '播放中',
+                ended: '播放完畢', error: '影片讀取失敗'
+            };
+            const pos = Number(video.position || 0);
+            const dur = Number(video.duration || 0);
+            const clock = dur > 0 ? ` ${pos.toFixed(1)} / ${dur.toFixed(1)} 秒` : '';
+            videoPlaybackStatus.textContent =
+                `${labels[video.status] || video.status || '未知狀態'}${clock}` +
+                (video.message ? `｜${video.message}` : '');
+            const unavailable = ['loading', 'error'].includes(video.status);
+            videoPlayButton.disabled = unavailable || video.status === 'playing' || video.status === 'ended';
+            videoPauseButton.disabled = unavailable || video.status !== 'playing';
+            videoRestartButton.disabled = unavailable;
+        }
+
+        async function controlGestureVideo(action) {
+            try {
+                const response = await fetch('/video_control', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({action})
+                });
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || `HTTP ${response.status}`);
+                }
+                if (action === 'restart') {
+                    videoPlaybackStatus.textContent = '正在回到開頭…';
+                }
+                await updateState();
+            } catch (error) {
+                videoPlaybackStatus.textContent = `操作失敗：${error.message}`;
+                console.error('影片控制失敗', error);
+            }
+        }
+        videoPlayButton.addEventListener('click', () => controlGestureVideo('play'));
+        videoPauseButton.addEventListener('click', () => controlGestureVideo('pause'));
+        videoRestartButton.addEventListener('click', () => controlGestureVideo('restart'));
+
+        updateVideoSourceState('camera');
 
         // =========================================================
         // 初始狀態
