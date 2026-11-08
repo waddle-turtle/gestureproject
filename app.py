@@ -131,6 +131,8 @@ output_frame_lock = threading.Lock()
 puppet_frame = None
 puppet_frame_time = None
 puppet_frame_lock = threading.Lock()
+# 記錄手機影像抵達 Raspberry Pi 的時間
+puppet_receive_times = deque(maxlen=300)
 state_lock = threading.Lock()
 right_hand_finger_count = None
 left_hand_finger_count = None
@@ -807,15 +809,68 @@ def phone_camera():
 @app.route('/phone_frame', methods=['POST'])
 def phone_frame():
     global puppet_frame, puppet_frame_time
+
     if request.mimetype != 'image/jpeg':
         return 'Content-Type 必須是 image/jpeg', 400
+
     jpeg_data = request.get_data()
+
     if not jpeg_data:
         return '沒有收到影像', 400
+
+    now = time.monotonic()
+
     with puppet_frame_lock:
         puppet_frame = jpeg_data
         puppet_frame_time = time.time()
+        puppet_receive_times.append(now)
+
     return '', 204
+
+@app.route('/puppet_stream_stats')
+def puppet_stream_stats():
+    now = time.monotonic()
+
+    with puppet_frame_lock:
+        recent = [
+            t for t in puppet_receive_times
+            if now - t <= 5.0
+        ]
+
+        last_time = (
+            puppet_receive_times[-1]
+            if puppet_receive_times else None
+        )
+
+        frame_size = (
+            len(puppet_frame)
+            if puppet_frame is not None else 0
+        )
+
+    age = (
+        now - last_time
+        if last_time is not None else None
+    )
+
+    if age is None or age >= 2.0 or len(recent) < 2:
+        receive_fps = 0.0
+    else:
+        duration = recent[-1] - recent[0]
+        receive_fps = (
+            (len(recent) - 1) / duration
+            if duration > 0 else 0.0
+        )
+
+    return jsonify({
+        "receive_fps": round(receive_fps, 1),
+        "frame_age_ms": (
+            round(age * 1000)
+            if age is not None else None
+        ),
+        "jpeg_kb": round(frame_size / 1024, 1),
+        "connected": age is not None and age < 3.0
+    })
+
 @app.route('/puppet_video_feed')
 def puppet_video_feed():
     return Response(generate_puppet_frames(),
@@ -823,14 +878,102 @@ def puppet_video_feed():
 @app.route('/viewer')
 def viewer():
     return Response('''<!doctype html>
-<html lang="zh-TW"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>實體戲偶接收畫面</title>
-<style>body{margin:0;background:#111;color:white;font-family:sans-serif;text-align:center}
-h1{font-size:20px;margin:14px 0}img{width:100%;max-width:1000px;height:auto;display:block;margin:0 auto}</style>
-</head><body><h1>實體戲偶接收畫面</h1>
-<img src="/puppet_video_feed" alt="實體戲偶即時影像"></body></html>''',
-                    mimetype='text/html')
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1">
+
+<title>掌中智戲｜實體戲偶監控</title>
+
+<style>
+body {
+    margin: 0;
+    background: #111;
+    color: white;
+    font-family: sans-serif;
+    text-align: center;
+}
+
+h1 {
+    font-size: 22px;
+    margin: 20px 0;
+}
+
+img {
+    width: 100%;
+    max-width: 1000px;
+    height: auto;
+    display: block;
+    margin: auto;
+}
+
+.stats {
+    margin: 20px auto;
+    padding: 16px;
+    max-width: 600px;
+    background: #222;
+    border-radius: 12px;
+    line-height: 2;
+}
+</style>
+</head>
+
+<body>
+<h1>掌中智戲｜實體戲偶即時影像</h1>
+
+<img src="/puppet_video_feed"
+     alt="實體戲偶即時影像">
+
+<div class="stats">
+    <div id="connection">連線狀態：讀取中</div>
+    <div id="receiveFPS">樹莓派接收 FPS：--</div>
+    <div id="frameAge">最新影格距今：--</div>
+    <div id="jpegSize">JPEG 大小：--</div>
+</div>
+
+<script>
+async function updateStats() {
+    try {
+        const response = await fetch(
+            "/puppet_stream_stats",
+            {cache: "no-store"}
+        );
+
+        if (!response.ok) {
+            throw new Error("HTTP " + response.status);
+        }
+
+        const data = await response.json();
+
+        document.querySelector("#connection").textContent =
+            "連線狀態：" +
+            (data.connected ? "手機傳送中" : "尚未收到新影格");
+
+        document.querySelector("#receiveFPS").textContent =
+            "樹莓派接收 FPS：" + data.receive_fps;
+
+        document.querySelector("#frameAge").textContent =
+            "最新影格距今：" +
+            (data.frame_age_ms === null
+                ? "--"
+                : data.frame_age_ms + " ms");
+
+        document.querySelector("#jpegSize").textContent =
+            "JPEG 大小：" + data.jpeg_kb + " KB";
+
+    } catch (error) {
+        document.querySelector("#connection").textContent =
+            "監控連線失敗：" + error.message;
+    }
+}
+
+updateStats();
+setInterval(updateStats, 1000);
+</script>
+</body>
+</html>''', mimetype='text/html')
+
 @app.route('/set_mode', methods=['POST'])
 def set_mode():
     global system_mode, right_character_command, left_character_command, script_started
