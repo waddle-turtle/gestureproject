@@ -5,6 +5,8 @@ import atexit
 import signal
 import numpy as np
 import threading
+from collections import deque
+import statistics
 import time
 import serial
 from flask import Flask, Response, jsonify, render_template, request
@@ -50,6 +52,79 @@ latest_ai_fps = 0.0
 visual_lock = threading.Lock()
 PREVIEW_FPS_LIMIT = 20
 PREVIEW_JPEG_QUALITY = 60
+# 第三階段：先量測瓶頸，再決定是否加快辨識。保持 640x480 預覽不變。
+# 2 = 延續穩定版（每兩個新影格辨識一次）；實測後可改 1 比較效能與準確率。
+DETECTION_EVERY_N_FRAMES = 2
+PERF_REPORT_INTERVAL = 5.0
+PERF_SAMPLES_MAX = 300
+perf_lock = threading.Lock()
+perf_samples = {key: deque(maxlen=PERF_SAMPLES_MAX) for key in
+                ('camera_decode_ms', 'ai_resize_ms', 'ai_inference_ms',
+                 'ai_total_ms', 'preview_jpeg_ms', 'preview_total_ms')}
+perf_counts = {'camera_frames': 0, 'ai_frames': 0, 'preview_frames': 0}
+perf_started = time.monotonic()
+perf_last_snapshot = {'window_seconds': 0.0, 'fps': {}, 'timings_ms': {}}
+
+
+def perf_record(key, milliseconds):
+    with perf_lock:
+        perf_samples[key].append(milliseconds)
+
+
+def perf_frame(key):
+    with perf_lock:
+        perf_counts[key] += 1
+
+
+def perf_snapshot(reset=False):
+    """回傳最近量測窗口；reset=True 供背景報表清空窗口計數。"""
+    global perf_started, perf_last_snapshot
+    with perf_lock:
+        seconds = max(0.001, time.monotonic() - perf_started)
+        rates = {key.replace('_frames', ''): round(value / seconds, 2)
+                 for key, value in perf_counts.items()}
+        timings = {}
+        for name, samples in perf_samples.items():
+            if not samples:
+                continue
+            values = sorted(samples)
+            timings[name] = {
+                'average': round(statistics.fmean(values), 2),
+                'p95': round(values[max(0, int(len(values) * .95 + .9999) - 1)], 2),
+                'samples': len(values)
+            }
+        snapshot = {'window_seconds': round(seconds, 2), 'fps': rates,
+                    'timings_ms': timings, 'detection_every_n': DETECTION_EVERY_N_FRAMES}
+        if reset:
+            perf_last_snapshot = snapshot
+            perf_started = time.monotonic()
+            for key in perf_counts:
+                perf_counts[key] = 0
+            for samples in perf_samples.values():
+                samples.clear()
+        return snapshot
+
+
+def perf_report_thread():
+    while not camera_stop_event.is_set():
+        time.sleep(PERF_REPORT_INTERVAL)
+        report = perf_snapshot(reset=True)
+        fps = report['fps']
+        times = report['timings_ms']
+        def avg(key):
+            return times.get(key, {}).get('average', 0)
+        print('[效能] Camera {:.1f} | AI {:.1f} | Preview {:.1f} FPS | '
+              '解碼 {:.1f}ms | AI推論 {:.1f}ms (P95 {:.1f}) | 預覽JPEG {:.1f}ms'.format(
+                  fps.get('camera', 0), fps.get('ai', 0), fps.get('preview', 0),
+                  avg('camera_decode_ms'), avg('ai_inference_ms'),
+                  times.get('ai_inference_ms', {}).get('p95', 0),
+                  avg('preview_jpeg_ms')), flush=True)
+
+
+@app.route('/performance_metrics')
+def performance_metrics():
+    return jsonify(perf_snapshot())
+
 
 camera_frame_lock = threading.Lock()
 output_frame_lock = threading.Lock()
@@ -275,9 +350,12 @@ def run_camera_source(epoch):
             if end != -1:
                 jpeg = bytes(buffer[:end + 2])
                 del buffer[:end + 2]
+                decode_started = time.perf_counter()
                 frame = cv2.imdecode(np.frombuffer(jpeg, dtype=np.uint8), cv2.IMREAD_COLOR)
+                perf_record('camera_decode_ms', (time.perf_counter() - decode_started) * 1000)
                 if frame is not None and get_video_source() == ('camera', epoch):
                     publish_frame(frame)
+                    perf_frame('camera_frames')
             if len(buffer) > 8_000_000:
                 buffer.clear()
     finally:
@@ -529,7 +607,8 @@ def vision_thread():
             if elapsed_time > 0:
                 fps = round(10 / elapsed_time, 1)
             fps_start_time = time.time()
-        if frame_count % 2 == 0:
+        if frame_count % DETECTION_EVERY_N_FRAMES == 0:
+            ai_started = time.perf_counter()
             visual_hands = []
             # 只縮小 MediaPipe 的辨識輸入
             # 網頁輸出仍使用原始 frame
@@ -540,7 +619,13 @@ def vision_thread():
             image_rgb = cv2.cvtColor(
                 detection_frame, cv2.COLOR_BGR2RGB
             )
+            perf_record('ai_resize_ms', (time.perf_counter() - ai_started) * 1000)
+            # MediaPipe 官方 Python 用法可標記為唯讀，避免非必要的影像複製。
+            image_rgb.flags.writeable = False
+            inference_started = time.perf_counter()
             results = hands.process(image_rgb)
+            perf_record('ai_inference_ms', (time.perf_counter() - inference_started) * 1000)
+            perf_frame('ai_frames')
             seen_hands = set()
             if results.multi_hand_landmarks:
                 for hand_landmarks, handedness in zip(
@@ -577,13 +662,17 @@ def vision_thread():
                     left_hand_action = 'NOT_DETECTED'
                     left_character_command = 'IDLE'
                 reset_hand_state('Left')
-        if frame_count % 2 == 0:
+        if frame_count % DETECTION_EVERY_N_FRAMES == 0:
             if get_video_source()[0] == 'camera' or video_play_event.is_set():
                 process_script_step()
             with visual_lock:
                 latest_visual_hands = visual_hands
                 latest_visual_time = time.monotonic()
-                latest_ai_fps = fps / 2.0
+                # AI FPS 由最近一個量測窗口的實際推論次數取得，不再以 FPS/2 推算。
+                with perf_lock:
+                    age = max(0.001, time.monotonic() - perf_started)
+                    latest_ai_fps = perf_counts['ai_frames'] / age
+            perf_record('ai_total_ms', (time.perf_counter() - ai_started) * 1000)
         time.sleep(0.002)
 
 
@@ -614,6 +703,7 @@ def preview_thread():
             time.sleep(0.005)
             continue
         last_frame_id, last_source = frame_id, source
+        preview_started = time.perf_counter()
         # 維持原比例；CSI 640×480，16:9 影片則縮為 640×360。
         height, width = frame.shape[:2]
         scale = min(1.0, 640 / width, 480 / height)
@@ -656,11 +746,15 @@ def preview_thread():
             (f'P2 CMD: {l_cmd}', (10, 165), (255, 0, 255)),
         ):
             cv2.putText(frame, text, pos, cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 2)
+        jpeg_started = time.perf_counter()
         ok, jpeg = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), PREVIEW_JPEG_QUALITY])
+        perf_record('preview_jpeg_ms', (time.perf_counter() - jpeg_started) * 1000)
         if ok and source == get_video_source():
             with output_frame_lock:
                 latest_output_frame = jpeg.tobytes()
                 latest_output_seq += 1
+            perf_frame('preview_frames')
+        perf_record('preview_total_ms', (time.perf_counter() - preview_started) * 1000)
         next_time = time.monotonic() + 1.0 / PREVIEW_FPS_LIMIT
 
 
@@ -680,15 +774,26 @@ def generate_frames():
 
 
 def generate_puppet_frames():
+    last_sent_frame = None
+
     while True:
         with puppet_frame_lock:
             frame = puppet_frame
-        if frame is None:
-            time.sleep(0.05)
+
+        # 等待手機傳來真正的新影格
+        if frame is None or frame is last_sent_frame:
+            time.sleep(0.01)
             continue
-        yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n'
-               + frame + b'\r\n')
-        time.sleep(0.03)
+
+        last_sent_frame = frame
+
+        yield (
+            b'--frame\r\n'
+            b'Content-Type: image/jpeg\r\n\r\n'
+            + frame
+            + b'\r\n'
+        )
+        
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -844,6 +949,7 @@ if __name__ == '__main__':
     threading.Thread(target=camera_thread, daemon=True).start()  # 動態影像來源
     threading.Thread(target=vision_thread, daemon=True).start()
     threading.Thread(target=preview_thread, daemon=True).start()
+    threading.Thread(target=perf_report_thread, daemon=True).start()
     try:
         app.run(host='0.0.0.0', port=5000, threaded=True, debug=False,
                 use_reloader=False, ssl_context=('certs/cert.pem', 'certs/key.pem'))

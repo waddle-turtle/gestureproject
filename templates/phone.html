@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="zh-Hant">
 <head>
@@ -10,19 +11,56 @@
 <main>
   <p class="eyebrow">掌中戲 · 手機攝影機</p>
   <h1>用手機拍攝實體戲偶</h1>
-  <p>手機負責拍攝，樹莓派或電腦負責接收。請保持此頁在前景，避免鎖定螢幕。</p>
-  <video id="camera" autoplay muted playsinline aria-label="手機本機鏡頭預覽"></video>
+
+  <p>
+    手機負責拍攝，樹莓派或電腦負責接收。
+    請保持此頁在前景，避免鎖定螢幕。
+  </p>
+
+  <video
+    id="camera"
+    autoplay
+    muted
+    playsinline
+    aria-label="手機本機鏡頭預覽">
+  </video>
+
   <div class="toolbar">
-    <label>鏡頭 <select id="facing"><option value="environment">後鏡頭</option><option value="user">前鏡頭</option></select></label>
-    <label>每秒張數 <select id="fps"><option value="10" selected>10 FPS</option><option value="15">15 <option value="20">20 FPS</option> FPS</option><option value="5">5 FPS</option></select></label>
+    <label>
+      鏡頭
+      <select id="facing">
+        <option value="environment">後鏡頭</option>
+        <option value="user">前鏡頭</option>
+      </select>
+    </label>
+
+    <label>
+      每秒張數
+      <select id="fps">
+        <option value="5">5 FPS</option>
+        <option value="10">10 FPS</option>
+        <option value="15" selected>15 FPS</option>
+        <option value="20">20 FPS</option>
+      </select>
+    </label>
+
     <button id="start" type="button">開始傳送</button>
     <button id="stop" type="button" disabled>停止</button>
   </div>
+
   <p id="status" role="status">尚未開啟鏡頭</p>
-  <p class="hint">觀看裝置請開啟同一主機的 <code>/viewer</code>。只有本機預覽出現，不代表伺服器已收到影像。</p>
+
+  <p class="hint">
+    觀看裝置請開啟同一主機的
+    <code>/viewer</code>。
+    只有本機預覽出現，不代表伺服器已收到影像。
+  </p>
+
   <a href="/viewer">查看接收畫面</a>
+
   <canvas id="capture" hidden></canvas>
 </main>
+
 <script src="/static/camera.js" defer></script>
 </body>
 </html>
