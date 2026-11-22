@@ -1,3 +1,4 @@
+from test_logger import record_event, run_info
 import cv2
 import mediapipe as mp
 import subprocess
@@ -1087,6 +1088,52 @@ def get_command():
             'arduino_connected': arduino is not None and arduino.is_open,
         }
     return jsonify(data)
+
+
+# =====================================================
+# 第四章圖 4-1：測試中心
+# =====================================================
+
+from test_capture import install_test_capture
+
+
+def get_test_snapshot():
+
+    # 取得手勢預覽的最新 JPEG
+    with output_frame_lock:
+        gesture_image = latest_output_frame
+
+    # 取得實體戲偶的最新 JPEG
+    with puppet_frame_lock:
+        puppet_image = puppet_frame
+
+        if puppet_frame_time is not None:
+            puppet_age = time.time() - puppet_frame_time
+        else:
+            puppet_age = None
+
+    # 紀錄當下的辨識結果與控制狀態
+    with state_lock:
+        current_state = {
+            "mode": system_mode,
+            "right_fingers": right_hand_finger_count,
+            "left_fingers": left_hand_finger_count,
+            "right_command": right_character_command,
+            "left_command": left_character_command,
+            "script_scene": script_current_scene
+        }
+
+    return (
+        gesture_image,
+        puppet_image,
+        current_state,
+        puppet_age
+    )
+
+
+# 註冊 /test 測試網頁與 API
+install_test_capture(app, get_test_snapshot)
+
 if __name__ == '__main__':
     threading.Thread(target=arduino_feedback_thread, daemon=True).start()
     threading.Thread(target=camera_thread, daemon=True).start()  # 動態影像來源
@@ -1101,3 +1148,4 @@ if __name__ == '__main__':
         if arduino is not None and arduino.is_open:
             arduino.close()
         print('掌中智戲已關閉並釋放相機、序列埠', flush=True)
+
