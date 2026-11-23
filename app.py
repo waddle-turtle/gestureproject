@@ -5,6 +5,7 @@ import subprocess
 import atexit
 import signal
 import numpy as np
+import math
 import threading
 from collections import deque
 import statistics
@@ -143,9 +144,6 @@ right_character_command = 'IDLE'
 left_character_command = 'IDLE'
 # 手勢確認改為固定維持 0.5 秒（僅在取得新 AI 推論結果時檢查）
 STABLE_HOLD_SECONDS = 0.5
-# 以下兩個門檻沿用筆電測試版，仍需 Raspberry Pi 實機校正
-FOUR_FINGER_MARGIN_RATIO = 0.05
-THUMB_EXTENSION_RATIO = 0.15
 COMMAND_COOLDOWN_SECONDS = 1.0
 hand_states = {
     'Right': {'candidate': -1, 'frames': 0, 'candidate_since': None,
@@ -481,31 +479,73 @@ def video_control():
     else:
         return jsonify({'success': False, 'message': 'action 必須是 play / pause / restart'}), 400
     return jsonify({'success': True})
+def _distance(first, second):
+    return math.sqrt(
+        (first.x - second.x) ** 2
+        + (first.y - second.y) ** 2
+        + (getattr(first, "z", 0.0) - getattr(second, "z", 0.0)) ** 2
+    )
+
+
+def _finger_extended(landmarks, tip, pip, mcp):
+    return (
+        landmarks[tip].y < landmarks[pip].y - 0.018
+        and landmarks[pip].y < landmarks[mcp].y - 0.012
+    )
+
+
+def _thumb_state(landmarks):
+    """Return (extended, clearly_tucked) using palm-relative distances.
+
+    Four-vs-five is intentionally biased toward five unless the thumb tip is
+    visibly inside the palm. This avoids an open palm becoming a four when the
+    camera foreshortens the thumb.
+    """
+    palm_width = max(0.001, _distance(landmarks[5], landmarks[17]))
+    palm_center = type("PalmPoint", (), {
+        "x": sum(landmarks[index].x for index in (0, 5, 9, 13, 17)) / 5.0,
+        "y": sum(landmarks[index].y for index in (0, 5, 9, 13, 17)) / 5.0,
+        "z": sum(getattr(landmarks[index], "z", 0.0) for index in (0, 5, 9, 13, 17)) / 5.0,
+    })()
+    tip_from_index = _distance(landmarks[4], landmarks[5]) / palm_width
+    tip_from_palm = _distance(landmarks[4], palm_center) / palm_width
+    ip_from_palm = _distance(landmarks[3], palm_center) / palm_width
+
+    clearly_tucked = tip_from_palm <= 0.78
+    extended = (
+        not clearly_tucked
+        and tip_from_index >= 0.36
+        and tip_from_palm >= ip_from_palm + 0.08
+    )
+    return extended, clearly_tucked
+
+
+def classify_counting_gesture(landmarks):
+    """Recognize the five deliberate finger-count gestures used by the show."""
+    if landmarks is None or len(landmarks) < 21:
+        return 0
+
+    index = _finger_extended(landmarks, 8, 6, 5)
+    middle = _finger_extended(landmarks, 12, 10, 9)
+    ring = _finger_extended(landmarks, 16, 14, 13)
+    pinky = _finger_extended(landmarks, 20, 18, 17)
+    thumb, thumb_tucked = _thumb_state(landmarks)
+
+    if index and middle and ring and pinky:
+        return 4 if thumb_tucked else 5
+    if index and middle and thumb and not ring and not pinky:
+        return 3
+    if index and middle and not thumb and not ring and not pinky:
+        return 2
+    if index and not middle and not ring and not pinky and not thumb:
+        return 1
+    return 0
+
+
 def count_fingers(hand_landmarks):
-    """依軟體組概念的實驗版：四指比較 tip/PIP/MCP，拇指以掌心正規化距離判斷。"""
-    landmarks = hand_landmarks.landmark
+    """使用軟體組指定 1～5 指手勢分類；其他組合回傳 0，不派送動作。"""
+    return classify_counting_gesture(hand_landmarks.landmark)
 
-    def distance(i, j):
-        return np.hypot(landmarks[i].x - landmarks[j].x,
-                        landmarks[i].y - landmarks[j].y)
-
-    palm_size = max(distance(5, 17), 0.001)
-    margin = palm_size * FOUR_FINGER_MARGIN_RATIO
-    count = 0
-    for tip, pip, mcp in ((8, 6, 5), (12, 10, 9),
-                          (16, 14, 13), (20, 18, 17)):
-        if (landmarks[tip].y < landmarks[pip].y - margin
-                and landmarks[tip].y < landmarks[mcp].y - margin):
-            count += 1
-
-    palm_indices = (0, 5, 9, 13, 17)
-    cx = sum(landmarks[i].x for i in palm_indices) / len(palm_indices)
-    cy = sum(landmarks[i].y for i in palm_indices) / len(palm_indices)
-    thumb_tip_distance = np.hypot(landmarks[4].x - cx, landmarks[4].y - cy)
-    thumb_root_distance = np.hypot(landmarks[2].x - cx, landmarks[2].y - cy)
-    if (thumb_tip_distance - thumb_root_distance) / palm_size > THUMB_EXTENSION_RATIO:
-        count += 1
-    return count
 def get_hand_action_name(finger_count):
     return ACTION_NAMES.get(finger_count, 'UNKNOWN')
 def reset_hand_state(hand_label, *, clear_cooldown=False):
