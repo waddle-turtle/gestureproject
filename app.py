@@ -141,11 +141,17 @@ right_hand_action = 'NOT_DETECTED'
 left_hand_action = 'NOT_DETECTED'
 right_character_command = 'IDLE'
 left_character_command = 'IDLE'
-STABLE_FRAMES_REQUIRED = 5
+# 手勢確認改為固定維持 0.5 秒（僅在取得新 AI 推論結果時檢查）
+STABLE_HOLD_SECONDS = 0.5
+# 以下兩個門檻沿用筆電測試版，仍需 Raspberry Pi 實機校正
+FOUR_FINGER_MARGIN_RATIO = 0.05
+THUMB_EXTENSION_RATIO = 0.15
 COMMAND_COOLDOWN_SECONDS = 1.0
 hand_states = {
-    'Right': {'candidate': -1, 'frames': 0, 'last_sent': -1, 'last_command_time': 0.0},
-    'Left': {'candidate': -1, 'frames': 0, 'last_sent': -1, 'last_command_time': 0.0},
+    'Right': {'candidate': -1, 'frames': 0, 'candidate_since': None,
+              'last_sent': -1, 'last_command_time': 0.0},
+    'Left': {'candidate': -1, 'frames': 0, 'candidate_since': None,
+             'last_sent': -1, 'last_command_time': 0.0},
 }
 ACTION_NAMES = {0: 'READY', 1: 'WAVE', 2: 'SALUTE',
                 3: 'DOUBLE_STRIKE', 4: 'SWORD_SWING', 5: 'GUARD'}
@@ -476,16 +482,28 @@ def video_control():
         return jsonify({'success': False, 'message': 'action 必須是 play / pause / restart'}), 400
     return jsonify({'success': True})
 def count_fingers(hand_landmarks):
+    """依軟體組概念的實驗版：四指比較 tip/PIP/MCP，拇指以掌心正規化距離判斷。"""
     landmarks = hand_landmarks.landmark
+
+    def distance(i, j):
+        return np.hypot(landmarks[i].x - landmarks[j].x,
+                        landmarks[i].y - landmarks[j].y)
+
+    palm_size = max(distance(5, 17), 0.001)
+    margin = palm_size * FOUR_FINGER_MARGIN_RATIO
     count = 0
-    for tip, pip in ((8, 6), (12, 10), (16, 14), (20, 18)):
-        if landmarks[tip].y < landmarks[pip].y:
+    for tip, pip, mcp in ((8, 6, 5), (12, 10, 9),
+                          (16, 14, 13), (20, 18, 17)):
+        if (landmarks[tip].y < landmarks[pip].y - margin
+                and landmarks[tip].y < landmarks[mcp].y - margin):
             count += 1
-    thumb_tip_distance = np.hypot(landmarks[4].x - landmarks[17].x,
-                                   landmarks[4].y - landmarks[17].y)
-    thumb_joint_distance = np.hypot(landmarks[3].x - landmarks[17].x,
-                                     landmarks[3].y - landmarks[17].y)
-    if thumb_tip_distance > thumb_joint_distance:
+
+    palm_indices = (0, 5, 9, 13, 17)
+    cx = sum(landmarks[i].x for i in palm_indices) / len(palm_indices)
+    cy = sum(landmarks[i].y for i in palm_indices) / len(palm_indices)
+    thumb_tip_distance = np.hypot(landmarks[4].x - cx, landmarks[4].y - cy)
+    thumb_root_distance = np.hypot(landmarks[2].x - cx, landmarks[2].y - cy)
+    if (thumb_tip_distance - thumb_root_distance) / palm_size > THUMB_EXTENSION_RATIO:
         count += 1
     return count
 def get_hand_action_name(finger_count):
@@ -494,6 +512,7 @@ def reset_hand_state(hand_label, *, clear_cooldown=False):
     state = hand_states[hand_label]
     state['candidate'] = -1
     state['frames'] = 0
+    state['candidate_since'] = None
     state['last_sent'] = -1
     # Tracking interruption must NOT bypass the 1-second cooldown.
     # This flag is only for an explicit new session if ever needed.
@@ -507,16 +526,19 @@ def analyze_hand_gesture(hand_label, finger_count):
     if finger_count not in (1, 2, 3, 4, 5):
         state['candidate'] = -1
         state['frames'] = 0
+        state['candidate_since'] = None
         state['last_sent'] = -1
         return
     if finger_count != state['candidate']:
         state['candidate'] = finger_count
         state['frames'] = 1
+        state['candidate_since'] = now
     else:
         state['frames'] += 1
     with state_lock:
         mode = system_mode
-    if mode != 'free' or state['frames'] < STABLE_FRAMES_REQUIRED:
+    if (mode != 'free' or state['candidate_since'] is None
+            or now - state['candidate_since'] < STABLE_HOLD_SECONDS):
         return
     if finger_count == state['last_sent']:
         return
@@ -548,7 +570,8 @@ def process_script_step():
         if expected is None:
             continue
         hs = hand_states[hand]
-        if hs['candidate'] != expected or hs['frames'] < STABLE_FRAMES_REQUIRED:
+        if (hs['candidate'] != expected or hs['candidate_since'] is None
+                or time.monotonic() - hs['candidate_since'] < STABLE_HOLD_SECONDS):
             return
     # 每組指令發送間隔至少 1 秒，以免前一組相同角色還未完成。
     now = time.monotonic()
