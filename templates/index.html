@@ -5805,12 +5805,12 @@
             fallbackAction = ""
         ) {
             const actionMap = {
-                0: "準備姿勢",
+                0: "無效／未指定手勢",
                 1: "揮手",
                 2: "敬禮",
                 3: "雙手下劈",
                 4: "揮劍",
-                5: "張開手"
+                5: "舉劍格擋"
             };
 
             if (
@@ -5867,7 +5867,7 @@
                 );
 
             valueElement.innerHTML =
-                `${fingerCount} 根手指
+                `手勢 ${fingerCount}
                  <span class="hand-detection-arrow">
                     →
                  </span>
@@ -6311,35 +6311,31 @@
                     scene.story_text ||
                     "";
 
-            // 劇本目前只由 Right / P1 推進
-            const rightFingerCount =
-                state.character_1?.finger_count;
+            // 劇本提示依當前步驟的 Left / Right 要求呈現；不改動後端推進。
+            const expectedHands = [
+                { label: "左手", expected: scene.left_count,
+                  actual: state.character_2?.finger_count },
+                { label: "右手", expected: scene.right_count,
+                  actual: state.character_1?.finger_count }
+            ].filter(item => item.expected !== null && item.expected !== undefined);
 
-            const expectedCount =
-                scene.gesture_count;
-
-            if (state.started) {
-                if (
-                    rightFingerCount === null ||
-                    rightFingerCount === undefined
-                ) {
-                    setCompactStatus(
-                        `等待右手比出 ${expectedCount} 根手指`
-                    );
-                }
-                else if (
-                    rightFingerCount === expectedCount
-                ) {
-                    setCompactStatus(
-                        `手勢正確：${rightFingerCount} 根，請保持穩定`,
-                        "correct"
-                    );
-                }
-                else {
-                    setCompactStatus(
-                        `目前右手 ${rightFingerCount} 根，請比 ${expectedCount} 根`,
-                        "warning"
-                    );
+            if (state.started && expectedHands.length) {
+                const missing = expectedHands.filter(
+                    item => item.actual === null || item.actual === undefined
+                );
+                const incorrect = expectedHands.filter(
+                    item => item.actual !== null &&
+                            item.actual !== undefined &&
+                            item.actual !== item.expected
+                );
+                const wanted = scene.gesture_name || expectedHands
+                    .map(item => `${item.label}手勢 ${item.expected}`).join("＋");
+                if (missing.length) {
+                    setCompactStatus(`等待指定手勢：${wanted}`);
+                } else if (incorrect.length) {
+                    setCompactStatus(`手勢尚未符合：${wanted}`, "warning");
+                } else {
+                    setCompactStatus("手勢正確，請持續 0.5 秒", "correct");
                 }
             }
 
