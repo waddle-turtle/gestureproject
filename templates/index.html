@@ -3818,6 +3818,23 @@
         }
         /* 主介面拉幕前就準備好，不再與布幕同步淡入 */
         .site-shell.is-revealed { transition-duration: 0.2s; }
+
+        /* V20: 手勢預覽完整顯示，左右補邊採主介面暖白色。
+           只調整手勢鏡頭，不影響實體戲偶舞台或影片來源。 */
+        body.free-mode .hand-panel .camera,
+        body.script-mode .hand-panel .camera {
+            background: #FDFBF6 !important;
+            overflow: hidden !important;
+        }
+        body.free-mode .hand-panel .camera img,
+        body.script-mode .hand-panel .camera img {
+            width: 100% !important;
+            height: 100% !important;
+            display: block !important;
+            object-fit: contain !important;
+            object-position: center center !important;
+            background: #FDFBF6 !important;
+        }
     </style>
 </head>
 
