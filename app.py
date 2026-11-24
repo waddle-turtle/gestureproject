@@ -804,14 +804,30 @@ def preview_thread():
             r_count, l_count = right_hand_finger_count, left_hand_finger_count
             r_action, l_action = right_hand_action, left_hand_action
             r_cmd, l_cmd = right_character_command, left_character_command
-        for text, pos, color in (
-            (f'Preview: {preview_fps:.1f} FPS  AI: {ai_fps:.1f} FPS', (10, 25), (0, 255, 0)),
-            (f'P1 Right: {r_count if r_count is not None else "-"} / {r_action}', (10, 60), (255, 255, 0)),
-            (f'P2 Left: {l_count if l_count is not None else "-"} / {l_action}', (10, 95), (255, 255, 0)),
-            (f'P1 CMD: {r_cmd}', (10, 130), (0, 0, 255)),
-            (f'P2 CMD: {l_cmd}', (10, 165), (255, 0, 255)),
-        ):
-            cv2.putText(frame, text, pos, cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 2)
+        # 統一為三行白字與半透明灰底，與正式舞台手勢預覽一致。
+        status_lines = (
+            f'Preview {preview_fps:.1f} FPS  |  AI {ai_fps:.1f} FPS',
+            f'P1  {r_count if r_count is not None else "-"} / {r_action}   CMD {r_cmd}',
+            f'P2  {l_count if l_count is not None else "-"} / {l_action}   CMD {l_cmd}',
+        )
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 0.47
+        thickness = 1
+        text_width = max(cv2.getTextSize(line, font, font_scale, thickness)[0][0]
+                         for line in status_lines)
+        panel_x, panel_y = 10, 10
+        panel_w = min(width - panel_x, text_width + 20)
+        panel_h = min(height - panel_y, 79)
+        if panel_w > 0 and panel_h > 0:
+            roi = frame[panel_y:panel_y + panel_h,
+                        panel_x:panel_x + panel_w]
+            shaded = roi.copy()
+            shaded[:] = (65, 65, 65)
+            cv2.addWeighted(shaded, 0.64, roi, 0.36, 0, dst=roi)
+            for idx, line in enumerate(status_lines):
+                cv2.putText(frame, line, (panel_x + 10, panel_y + 20 + idx * 23),
+                            font, font_scale, (245, 245, 245), thickness,
+                            cv2.LINE_AA)
         jpeg_started = time.perf_counter()
         ok, jpeg = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), PREVIEW_JPEG_QUALITY])
         perf_record('preview_jpeg_ms', (time.perf_counter() - jpeg_started) * 1000)
