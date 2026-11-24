@@ -157,11 +157,11 @@ UI_ACTION_NAMES = {0: '準備姿勢', 1: '揮手', 2: '敬禮',
                    3: '雙手下劈', 4: '揮劍', 5: '舉劍格擋'}
 FREE_MODE_ACTION_LIST = [
     {'gesture_icon': '✊', 'gesture_name': '握拳', 'action_name': '準備姿勢', 'action_code': 'READY'},
-    {'gesture_icon': '☝️', 'gesture_name': '伸出 1 根手指', 'action_name': '揮手', 'action_code': 'WAVE'},
-    {'gesture_icon': '✌️', 'gesture_name': '伸出 2 根手指', 'action_name': '敬禮', 'action_code': 'SALUTE'},
-    {'gesture_icon': '🤟', 'gesture_name': '伸出 3 根手指', 'action_name': '雙手下劈', 'action_code': 'DOUBLE_STRIKE'},
-    {'gesture_icon': '🖐️', 'gesture_name': '伸出 4 根手指', 'action_name': '揮劍', 'action_code': 'SWORD_SWING'},
-    {'gesture_icon': '🖐️', 'gesture_name': '伸出 5 根手指', 'action_name': '舉劍格擋', 'action_code': 'GUARD'},
+    {'gesture_icon': '☝️', 'gesture_name': '1 指｜僅食指伸直', 'action_name': '揮手', 'action_code': 'WAVE'},
+    {'gesture_icon': '✌️', 'gesture_name': '2 指｜食指＋中指', 'action_name': '敬禮', 'action_code': 'SALUTE'},
+    {'gesture_icon': '🤟', 'gesture_name': '3 指｜拇指＋食指＋中指', 'action_name': '雙手下劈', 'action_code': 'DOUBLE_STRIKE'},
+    {'gesture_icon': '🖐️', 'gesture_name': '4 指｜四指伸直，拇指收掌', 'action_name': '揮劍', 'action_code': 'SWORD_SWING'},
+    {'gesture_icon': '🖐️', 'gesture_name': '5 指｜四指伸直，拇指未收掌', 'action_name': '舉劍格擋', 'action_code': 'GUARD'},
 ]
 system_mode = 'script'
 script_generated = False
@@ -173,21 +173,21 @@ script_last_action_name = '尚未執行'
 SCRIPT_NAME = '《雙俠論劍》'
 SCRIPT_DESCRIPTION = '青雲與赤風以劍會友，六幕、十五組雙角色手勢操作。'
 SCRIPT_SCENES = [
-    {'scene_title': '江湖相遇', 'story_text': '赤風打招呼', 'gesture_count': 1, 'gesture_name': '右手 1 根', 'gesture_icon': '☝️', 'operator_text': '請比出 右手 1 根，保持穩定。', 'action_name': '赤風打招呼', 'action_code': 'R1', 'left_count': None, 'right_count': 1, 'step_number': 1},
-    {'scene_title': '江湖相遇', 'story_text': '青雲行禮', 'gesture_count': 2, 'gesture_name': '左手 2 根', 'gesture_icon': '✌️', 'operator_text': '請比出 左手 2 根，保持穩定。', 'action_name': '青雲行禮', 'action_code': 'L2', 'left_count': 2, 'right_count': None, 'step_number': 2},
-    {'scene_title': '江湖相遇', 'story_text': '赤風回禮', 'gesture_count': 2, 'gesture_name': '右手 2 根', 'gesture_icon': '✌️', 'operator_text': '請比出 右手 2 根，保持穩定。', 'action_name': '赤風回禮', 'action_code': 'R2', 'left_count': None, 'right_count': 2, 'step_number': 3},
-    {'scene_title': '以劍會友', 'story_text': '青雲展示劍法', 'gesture_count': 4, 'gesture_name': '左手 4 根', 'gesture_icon': '🖐️', 'operator_text': '請比出 左手 4 根，保持穩定。', 'action_name': '青雲展示劍法', 'action_code': 'L4', 'left_count': 4, 'right_count': None, 'step_number': 4},
-    {'scene_title': '以劍會友', 'story_text': '赤風展示劍法', 'gesture_count': 4, 'gesture_name': '右手 4 根', 'gesture_icon': '🖐️', 'operator_text': '請比出 右手 4 根，保持穩定。', 'action_name': '赤風展示劍法', 'action_code': 'R4', 'left_count': None, 'right_count': 4, 'step_number': 5},
-    {'scene_title': '以劍會友', 'story_text': '雙方正式行禮', 'gesture_count': 2, 'gesture_name': '左手 2 根＋右手 2 根', 'gesture_icon': '✌️', 'operator_text': '請比出 左手 2 根＋右手 2 根，保持穩定。', 'action_name': '雙方正式行禮', 'action_code': 'DUAL', 'left_count': 2, 'right_count': 2, 'step_number': 6},
-    {'scene_title': '赤風先攻', 'story_text': '赤風攻擊、青雲格擋', 'gesture_count': 3, 'gesture_name': '左手 5 根＋右手 3 根', 'gesture_icon': '🤟', 'operator_text': '請比出 左手 5 根＋右手 3 根，保持穩定。', 'action_name': '赤風攻擊、青雲格擋', 'action_code': 'DUAL', 'left_count': 5, 'right_count': 3, 'step_number': 7},
-    {'scene_title': '青雲反擊', 'story_text': '青雲揮劍', 'gesture_count': 4, 'gesture_name': '左手 4 根', 'gesture_icon': '🖐️', 'operator_text': '請比出 左手 4 根，保持穩定。', 'action_name': '青雲揮劍', 'action_code': 'L4', 'left_count': 4, 'right_count': None, 'step_number': 8},
-    {'scene_title': '青雲反擊', 'story_text': '青雲攻擊、赤風格擋', 'gesture_count': 5, 'gesture_name': '左手 3 根＋右手 5 根', 'gesture_icon': '🖐️', 'operator_text': '請比出 左手 3 根＋右手 5 根，保持穩定。', 'action_name': '青雲攻擊、赤風格擋', 'action_code': 'DUAL', 'left_count': 3, 'right_count': 5, 'step_number': 9},
-    {'scene_title': '最終交鋒', 'story_text': '雙方同時揮劍', 'gesture_count': 4, 'gesture_name': '左手 4 根＋右手 4 根', 'gesture_icon': '🖐️', 'operator_text': '請比出 左手 4 根＋右手 4 根，保持穩定。', 'action_name': '雙方同時揮劍', 'action_code': 'DUAL', 'left_count': 4, 'right_count': 4, 'step_number': 10},
-    {'scene_title': '最終交鋒', 'story_text': '赤風再次進攻、青雲格擋', 'gesture_count': 3, 'gesture_name': '左手 5 根＋右手 3 根', 'gesture_icon': '🤟', 'operator_text': '請比出 左手 5 根＋右手 3 根，保持穩定。', 'action_name': '赤風再次進攻、青雲格擋', 'action_code': 'DUAL', 'left_count': 5, 'right_count': 3, 'step_number': 11},
-    {'scene_title': '最終交鋒', 'story_text': '青雲最後反擊、赤風格擋', 'gesture_count': 5, 'gesture_name': '左手 3 根＋右手 5 根', 'gesture_icon': '🖐️', 'operator_text': '請比出 左手 3 根＋右手 5 根，保持穩定。', 'action_name': '青雲最後反擊、赤風格擋', 'action_code': 'DUAL', 'left_count': 3, 'right_count': 5, 'step_number': 12},
-    {'scene_title': '以武會友', 'story_text': '赤風認可對手', 'gesture_count': 2, 'gesture_name': '右手 2 根', 'gesture_icon': '✌️', 'operator_text': '請比出 右手 2 根，保持穩定。', 'action_name': '赤風認可對手', 'action_code': 'R2', 'left_count': None, 'right_count': 2, 'step_number': 13},
-    {'scene_title': '以武會友', 'story_text': '青雲回禮', 'gesture_count': 2, 'gesture_name': '左手 2 根', 'gesture_icon': '✌️', 'operator_text': '請比出 左手 2 根，保持穩定。', 'action_name': '青雲回禮', 'action_code': 'L2', 'left_count': 2, 'right_count': None, 'step_number': 14},
-    {'scene_title': '以武會友', 'story_text': '雙方揮手謝幕', 'gesture_count': 1, 'gesture_name': '左手 1 根＋右手 1 根', 'gesture_icon': '☝️', 'operator_text': '請比出 左手 1 根＋右手 1 根，保持穩定。', 'action_name': '雙方揮手謝幕', 'action_code': 'DUAL', 'left_count': 1, 'right_count': 1, 'step_number': 15},
+    {'scene_title': '江湖相遇', 'story_text': '赤風打招呼', 'gesture_count': 1, 'gesture_name': '右手 1 指（僅食指伸直）', 'gesture_icon': '☝️', 'operator_text': '請比出 右手 1 指（僅食指伸直），持續 0.5 秒。', 'action_name': '赤風打招呼', 'action_code': 'R1', 'left_count': None, 'right_count': 1, 'step_number': 1},
+    {'scene_title': '江湖相遇', 'story_text': '青雲行禮', 'gesture_count': 2, 'gesture_name': '左手 2 指（食指＋中指）', 'gesture_icon': '✌️', 'operator_text': '請比出 左手 2 指（食指＋中指），持續 0.5 秒。', 'action_name': '青雲行禮', 'action_code': 'L2', 'left_count': 2, 'right_count': None, 'step_number': 2},
+    {'scene_title': '江湖相遇', 'story_text': '赤風回禮', 'gesture_count': 2, 'gesture_name': '右手 2 指（食指＋中指）', 'gesture_icon': '✌️', 'operator_text': '請比出 右手 2 指（食指＋中指），持續 0.5 秒。', 'action_name': '赤風回禮', 'action_code': 'R2', 'left_count': None, 'right_count': 2, 'step_number': 3},
+    {'scene_title': '以劍會友', 'story_text': '青雲展示劍法', 'gesture_count': 4, 'gesture_name': '左手 4 指（四指伸直，拇指收掌）', 'gesture_icon': '🖐️', 'operator_text': '請比出 左手 4 指（四指伸直，拇指收掌），持續 0.5 秒。', 'action_name': '青雲展示劍法', 'action_code': 'L4', 'left_count': 4, 'right_count': None, 'step_number': 4},
+    {'scene_title': '以劍會友', 'story_text': '赤風展示劍法', 'gesture_count': 4, 'gesture_name': '右手 4 指（四指伸直，拇指收掌）', 'gesture_icon': '🖐️', 'operator_text': '請比出 右手 4 指（四指伸直，拇指收掌），持續 0.5 秒。', 'action_name': '赤風展示劍法', 'action_code': 'R4', 'left_count': None, 'right_count': 4, 'step_number': 5},
+    {'scene_title': '以劍會友', 'story_text': '雙方正式行禮', 'gesture_count': 2, 'gesture_name': '左手 2 指（食指＋中指）＋右手 2 指（食指＋中指）', 'gesture_icon': '✌️', 'operator_text': '請比出 左手 2 指（食指＋中指）＋右手 2 指（食指＋中指），持續 0.5 秒。', 'action_name': '雙方正式行禮', 'action_code': 'DUAL', 'left_count': 2, 'right_count': 2, 'step_number': 6},
+    {'scene_title': '赤風先攻', 'story_text': '赤風攻擊、青雲格擋', 'gesture_count': 3, 'gesture_name': '左手 5 指（四指伸直，拇指未收掌）＋右手 3 指（拇指＋食指＋中指）', 'gesture_icon': '🤟', 'operator_text': '請比出 左手 5 指（四指伸直，拇指未收掌）＋右手 3 指（拇指＋食指＋中指），持續 0.5 秒。', 'action_name': '赤風攻擊、青雲格擋', 'action_code': 'DUAL', 'left_count': 5, 'right_count': 3, 'step_number': 7},
+    {'scene_title': '青雲反擊', 'story_text': '青雲揮劍', 'gesture_count': 4, 'gesture_name': '左手 4 指（四指伸直，拇指收掌）', 'gesture_icon': '🖐️', 'operator_text': '請比出 左手 4 指（四指伸直，拇指收掌），持續 0.5 秒。', 'action_name': '青雲揮劍', 'action_code': 'L4', 'left_count': 4, 'right_count': None, 'step_number': 8},
+    {'scene_title': '青雲反擊', 'story_text': '青雲攻擊、赤風格擋', 'gesture_count': 5, 'gesture_name': '左手 3 指（拇指＋食指＋中指）＋右手 5 指（四指伸直，拇指未收掌）', 'gesture_icon': '🖐️', 'operator_text': '請比出 左手 3 指（拇指＋食指＋中指）＋右手 5 指（四指伸直，拇指未收掌），持續 0.5 秒。', 'action_name': '青雲攻擊、赤風格擋', 'action_code': 'DUAL', 'left_count': 3, 'right_count': 5, 'step_number': 9},
+    {'scene_title': '最終交鋒', 'story_text': '雙方同時揮劍', 'gesture_count': 4, 'gesture_name': '左手 4 指（四指伸直，拇指收掌）＋右手 4 指（四指伸直，拇指收掌）', 'gesture_icon': '🖐️', 'operator_text': '請比出 左手 4 指（四指伸直，拇指收掌）＋右手 4 指（四指伸直，拇指收掌），持續 0.5 秒。', 'action_name': '雙方同時揮劍', 'action_code': 'DUAL', 'left_count': 4, 'right_count': 4, 'step_number': 10},
+    {'scene_title': '最終交鋒', 'story_text': '赤風再次進攻、青雲格擋', 'gesture_count': 3, 'gesture_name': '左手 5 指（四指伸直，拇指未收掌）＋右手 3 指（拇指＋食指＋中指）', 'gesture_icon': '🤟', 'operator_text': '請比出 左手 5 指（四指伸直，拇指未收掌）＋右手 3 指（拇指＋食指＋中指），持續 0.5 秒。', 'action_name': '赤風再次進攻、青雲格擋', 'action_code': 'DUAL', 'left_count': 5, 'right_count': 3, 'step_number': 11},
+    {'scene_title': '最終交鋒', 'story_text': '青雲最後反擊、赤風格擋', 'gesture_count': 5, 'gesture_name': '左手 3 指（拇指＋食指＋中指）＋右手 5 指（四指伸直，拇指未收掌）', 'gesture_icon': '🖐️', 'operator_text': '請比出 左手 3 指（拇指＋食指＋中指）＋右手 5 指（四指伸直，拇指未收掌），持續 0.5 秒。', 'action_name': '青雲最後反擊、赤風格擋', 'action_code': 'DUAL', 'left_count': 3, 'right_count': 5, 'step_number': 12},
+    {'scene_title': '以武會友', 'story_text': '赤風認可對手', 'gesture_count': 2, 'gesture_name': '右手 2 指（食指＋中指）', 'gesture_icon': '✌️', 'operator_text': '請比出 右手 2 指（食指＋中指），持續 0.5 秒。', 'action_name': '赤風認可對手', 'action_code': 'R2', 'left_count': None, 'right_count': 2, 'step_number': 13},
+    {'scene_title': '以武會友', 'story_text': '青雲回禮', 'gesture_count': 2, 'gesture_name': '左手 2 指（食指＋中指）', 'gesture_icon': '✌️', 'operator_text': '請比出 左手 2 指（食指＋中指），持續 0.5 秒。', 'action_name': '青雲回禮', 'action_code': 'L2', 'left_count': 2, 'right_count': None, 'step_number': 14},
+    {'scene_title': '以武會友', 'story_text': '雙方揮手謝幕', 'gesture_count': 1, 'gesture_name': '左手 1 指（僅食指伸直）＋右手 1 指（僅食指伸直）', 'gesture_icon': '☝️', 'operator_text': '請比出 左手 1 指（僅食指伸直）＋右手 1 指（僅食指伸直），持續 0.5 秒。', 'action_name': '雙方揮手謝幕', 'action_code': 'DUAL', 'left_count': 1, 'right_count': 1, 'step_number': 15},
 ]
 def send_arduino_command(command):
     global arduino
